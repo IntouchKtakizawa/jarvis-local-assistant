@@ -44,6 +44,7 @@ export const server=http.createServer(async(req,res)=>{
       const {accountId}=JSON.parse(await body(req));const binding=randomBytes(32).toString('base64url');
       const authUrl=await mutate(()=>auth.start(accountId,binding));res.setHeader('Set-Cookie',`jarvis_oauth=${binding}; HttpOnly; SameSite=Lax; Path=/; Max-Age=600`);return json(res,200,{authUrl});
     }
+    if(req.method==='POST'&&path==='/api/auth/resume'){const authUrl=await auth.resume(cookie(req,'jarvis_oauth'));return json(res,200,{authUrl});}
     if(req.method==='POST'&&path==='/api/auth/cancel'){await mutate(()=>auth.cancel());return json(res,200,{ok:true});}
     if(req.method==='POST'&&path==='/api/auth/select'){const{id}=JSON.parse(await body(req));await mutate(()=>auth.select(id));return json(res,200,{ok:true});}
     if(req.method==='POST'&&path==='/api/auth/logout'){const result=await mutate(()=>auth.logout());return json(res,200,result);}

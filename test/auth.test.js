@@ -55,3 +55,9 @@ test('refreshes are single-flight and rotate credentials atomically; logout clea
 test('logout warns if remote revocation was not confirmed',async()=>fixture(async({auth})=>{await login(auth);const result=await auth.logout();assert.equal(result.revoked,false);assert.match(result.message,/not confirmed/);assert.equal((await auth.status()).signedIn,false);},{revokeStatus:503}));
 
 test('logout waits for refresh rotation and revokes the newest renewable session',async()=>fixture(async({auth,grants})=>{await login(auth);auth.active().expires_at=0;const refreshing=auth.accessToken();await new Promise(r=>setTimeout(r,2));const signedOut=auth.logout();await refreshing;assert.equal((await signedOut).revoked,true);const revoked=grants.find(f=>f.get('token_type_hint')==='refresh_token');assert.equal(revoked.get('token'),'rotated-refresh');assert.equal((await auth.status()).signedIn,false);}));
+
+test('a pending login resumes for its initiating browser without issuing another registration',async()=>fixture(async({auth,grants})=>{
+ const first=await auth.start(null,'browser-binding');assert.equal(await auth.resume('browser-binding'),first);assert.equal(grants.length,0);
+ await assert.rejects(auth.resume('wrong-browser'),/another browser/);
+ auth.pending.expires=Date.now()-1;await assert.rejects(auth.resume('browser-binding'),/expired/);
+}));

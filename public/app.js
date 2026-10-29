@@ -21,15 +21,15 @@ async function refresh({quiet=false}={}){
     if(!status.models.length){const option=document.createElement('option');option.textContent='Connect to load models';option.value='';$('#model').append(option);}
     $('#model').value=status.models.some(m=>m.id===current)?current:status.models.some(m=>m.id===status.defaultModel)?status.defaultModel:$('#model').options[0].value;
     const cloud=status.provider==='chatgpt',auth=status.auth;
-    $('.privacy').textContent=cloud?'YOUR ACCOUNT · LOCAL VOICE':'LOCAL AI · LOCAL VOICE';$('#model-short').textContent=$('#model').value||'Connect a model';$('.core-bottom span').textContent=cloud?'CHATGPT INFERENCE':'ON-DEVICE PROCESSING';$('.local-note p').textContent=cloud?'Chat uses your ChatGPT plan with OpenAI. Speech recognition and voice synthesis run on this Mac.':'Chat and speech run on your machine using Ollama, whisper.cpp, and local TTS.';$('#connect-banner').hidden=!cloud||(auth.signedIn&&auth.planEnabled);$('#connect').textContent=auth.pending?'Waiting for sign-in…':'Continue with ChatGPT';$('#account-card').hidden=!cloud;$('#intelligence-label').textContent=cloud?'ChatGPT intelligence':'Local intelligence';
+    $('.privacy').textContent=cloud?'YOUR ACCOUNT · LOCAL VOICE':'LOCAL AI · LOCAL VOICE';$('#model-short').textContent=$('#model').value||'Connect a model';$('.core-bottom span').textContent=cloud?'CHATGPT INFERENCE':'ON-DEVICE PROCESSING';$('.local-note p').textContent=cloud?'Chat uses your ChatGPT plan with OpenAI. Speech recognition and voice synthesis run on this Mac.':'Chat and speech run on your machine using Ollama, whisper.cpp, and local TTS.';$('#connect-banner').hidden=!cloud||(auth.signedIn&&auth.planEnabled);$('#connect').textContent=auth.pending?'Continue sign-in ↗':'Continue with ChatGPT';$('#account-card').hidden=!cloud;$('#intelligence-label').textContent=cloud?'ChatGPT intelligence':'Local intelligence';
     $('#ollama-state').textContent=cloud?(status.connected?'Connected · ChatGPT plan':auth.signedIn?(auth.planEnabled?'Signed in · models unavailable':'Plan permission required'):'Not signed in'):status.connected?'Ollama · on this device':'Ollama offline';
-    $('#auth-summary').textContent=auth.pending?'Waiting for ChatGPT sign-in…':auth.signedIn?(auth.planEnabled?'Your ChatGPT plan is connected.':'Signed in. Enable plan usage to chat.'):'Use your ChatGPT plan. No API key needed.';
+    $('#auth-summary').textContent=auth.pending?'A sign-in is waiting. Continue below, or cancel to start again.':auth.signedIn?(auth.planEnabled?'Your ChatGPT plan is connected.':'Signed in. Enable plan usage to chat.'):'Use your ChatGPT plan. No API key needed.';
     $('#account').replaceChildren();
     for(const account of auth.accounts){const option=document.createElement('option');option.value=account.id;option.textContent=account.label;$('#account').append(option);}
     const add=document.createElement('option');add.value='new';add.textContent='Add another ChatGPT account';$('#account').append(add);$('#account').value=selectedAccount==='new'?'new':auth.activeId||'new';
-    $('#sign-in').textContent=auth.signedIn&&auth.planEnabled?'Sign in again with ChatGPT':'Continue with ChatGPT';
+    $('#sign-in').textContent=auth.pending?'Continue sign-in ↗':auth.signedIn&&auth.planEnabled?'Sign in again with ChatGPT':'Continue with ChatGPT';
     $('#sign-out').hidden=!auth.signedIn;$('#cancel-login').hidden=!auth.pending;$('#plan-indicator').hidden=!cloud||!auth.signedIn||!auth.planEnabled;
-    if(auth.pending&&!$('#settings').open)$('#settings').showModal();if(!auth.pending){$('#sign-in-link').hidden=true;clearInterval(authPolling);authPolling=null;}
+    if(!auth.pending){$('#sign-in-link').hidden=true;clearInterval(authPolling);authPolling=null;}
     if(auth.welcomeRequired&&auth.planEnabled&&!$('#plan-welcome').open){$('#settings').close();$('#plan-welcome').showModal();}
     $('#stt-state').textContent=status.stt?'whisper.cpp · ready':'Not running · see setup guide';
     $('#tts-state').textContent=status.tts?(status.ttsProvider==='macos'?'macOS · British English':'Piper · local voice'):'Not configured';
@@ -42,16 +42,22 @@ async function refresh({quiet=false}={}){
 function updateControls(){
   $('#send').disabled=busy||!!recording||recordStarting||authWorking||status.auth?.pending||!status.connected;$('#model').disabled=busy||!status.connected;
   $('#clear').disabled=busy||!!recording;$('#mic').disabled=(busy&&!recording)||recordStarting;$('#stop').hidden=!busy;$('#send').hidden=busy;
-  for(const id of ['connect','sign-in','sign-out','account'])$('#'+id).disabled=busy||!!recording||authWorking||Boolean(status.auth?.pending);
+  for(const id of ['connect','sign-in'])$('#'+id).disabled=busy||!!recording||authWorking;for(const id of ['sign-out','account'])$('#'+id).disabled=busy||!!recording||authWorking||Boolean(status.auth?.pending);
   $('#cancel-login').disabled=authWorking;$('#talk').disabled=$('#mic').disabled;$('#visual-context').disabled=busy;
 }
 async function authAction(path,data={}){const response=await apiFetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});const result=await response.json();if(!response.ok)throw new Error(result.error);return result;}
 $('#sign-in').addEventListener('click',async()=>{
-  stopSpeech();authWorking=true;updateControls();let popup=window.open('about:blank','jarvis-chatgpt-login');
-  try{const accountId=$('#account').value;const result=await authAction('/api/auth/start',{accountId:accountId==='new'?null:accountId});const url=new URL(result.authUrl);if(url.origin!=='https://auth.openai.com')throw new Error('Unexpected sign-in destination.');
-    const link=$('#sign-in-link');link.href=url.href;link.hidden=false;if(popup){popup.opener=null;popup.location.replace(url.href);}notice('Complete sign-in in the OpenAI window. Use the sign-in link if the window did not open.');log('Official ChatGPT sign-in started');
-    authPolling=setInterval(()=>refresh({quiet:true}),4000);
-  }catch(e){popup?.close();notice(e.message);}finally{authWorking=false;await refresh({quiet:true});}
+  if(authWorking||busy||recording)return;
+  stopSpeech();authWorking=true;updateControls();$('#auth-feedback').textContent='Opening OpenAI sign-in…';
+  try{
+    const accountId=$('#account').value;
+    const result=status.auth?.pending?await authAction('/api/auth/resume'):await authAction('/api/auth/start',{accountId:accountId==='new'?null:accountId});
+    const url=new URL(result.authUrl);if(url.origin!=='https://auth.openai.com')throw new Error('Unexpected sign-in destination.');
+    const link=$('#sign-in-link');link.href=url.href;link.hidden=false;
+    log('Opening official ChatGPT sign-in');
+    window.location.assign(url.href);
+  }catch(e){$('#auth-feedback').textContent=e.message;notice(e.message);await refresh({quiet:true});}
+  finally{authWorking=false;updateControls();}
 });
 $('#connect').addEventListener('click',()=>$('#sign-in').click());
 $('#settings-open').addEventListener('click',()=>$('#settings').showModal());
@@ -63,7 +69,7 @@ $('#messages').addEventListener('scroll',()=>{const m=$('#messages');followOutpu
 $('#settings-close').addEventListener('click',()=>$('#settings').close());
 $('#talk').addEventListener('click',()=>$('#mic').click());
 $('#voice-stop').addEventListener('click',()=>{stopSpeech();rest();});
-$('#cancel-login').addEventListener('click',async()=>{try{await authAction('/api/auth/cancel');notice('Sign-in cancelled.');await refresh({quiet:true});}catch(e){notice(e.message);}});
+$('#cancel-login').addEventListener('click',async()=>{try{await authAction('/api/auth/cancel');$('#auth-feedback').textContent='Sign-in cancelled. You can start again.';notice('Sign-in cancelled.');await refresh({quiet:true});}catch(e){notice(e.message);}});
 $('#sign-out').addEventListener('click',async()=>{authWorking=true;updateControls();stopSpeech();try{const result=await authAction('/api/auth/logout');history=[];$('#messages').replaceChildren();message('assistant','Signed out. Your next session will start fresh.');await refresh({quiet:true});notice(result.message);log('ChatGPT signed out');}catch(e){notice(e.message);}finally{authWorking=false;updateControls();}});
 $('#account').addEventListener('change',async()=>{if($('#account').value==='new'){notice('Click Continue with ChatGPT to add this account.');return;}authWorking=true;updateControls();stopSpeech();try{await authAction('/api/auth/select',{id:$('#account').value});await refresh({quiet:true});}catch(e){notice(e.message);}finally{authWorking=false;updateControls();}});
 $('#welcome-dismiss').addEventListener('click',async()=>{try{await authAction('/api/auth/welcome');$('#plan-welcome').close();}catch(e){notice(e.message);}});

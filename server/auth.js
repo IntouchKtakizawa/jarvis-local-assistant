@@ -44,7 +44,13 @@ export class ChatGPTAuth {
     if(!account)params.agent_name_hint='JARVIS';
     else{if(account.id_token)params.id_token_hint=account.id_token;if(account.email)params.login_hint=account.email;if(!account.scopes?.includes(PLAN_SCOPE))params.prompt='consent';}
     for(const [key,value]of Object.entries(params))url.searchParams.set(key,value);
-    return url.href;
+    p.authorizationURL=url.href;return url.href;
+  }
+  async resume(binding){
+    await this.ready;const p=this.pending;
+    if(!p||p.expires<Date.now()||p.exchanging)throw new AuthError('This sign-in expired or is being verified. Cancel it and start again.','login_expired',409);
+    if(!equal(binding,p.binding))throw new AuthError('This sign-in was started in another browser. Cancel it and start again here.','invalid_browser_binding',403);
+    return p.authorizationURL;
   }
   async exchange(params){const d=await this.metadata();const response=await this.fetch(d.token_endpoint,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(params),signal:AbortSignal.timeout(20000)});if(!response.ok){let code='oauth_exchange_failed';try{const data=await response.json();if(typeof data.error==='string')code=data.error;}catch{}throw new AuthError(`OpenAI sign-in could not renew or exchange credentials (${code}). Please sign in again.`,code,response.status);}return response.json();}
   tokenFields(tokens,previous){

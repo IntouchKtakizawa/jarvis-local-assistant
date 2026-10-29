@@ -20,9 +20,9 @@ npm start
 
 Open **http://127.0.0.1:3210**. `localhost` redirects to the canonical `127.0.0.1` origin so browser binding and the OAuth callback stay consistent.
 
-1. Click **Continue with ChatGPT**. An OpenAI sign-in window opens; if the browser blocks it, use the **Open ChatGPT sign-in** link.
+1. Click **Continue with ChatGPT**. OpenAI sign-in opens in the same tab; no pop-up is required.
 2. Sign in with **your own account** on OpenAI’s website and authorise JARVIS to use your ChatGPT plan. New registrations can ask you to name the app and choose a workspace/usage allowance.
-3. The callback returns to JARVIS. The original tab checks for completion automatically. A one-time welcome explains plan usage.
+3. The callback returns to JARVIS. JARVIS reloads after the callback. A one-time welcome explains plan usage.
 4. Select an account-available model, type a prompt, and press Enter. Shift+Enter adds a line. Responses stream into the conversation.
 
 **You must complete the OpenAI sign-in yourself.** The app never asks for your password or asks you to paste tokens. Successful sign-in is not proof of access to every model; a completed inference request verifies access for that request. OpenAI can reject plan access, policy/region eligibility, or usage independently.
@@ -123,7 +123,7 @@ Microphone → local PCM/WAV → local whisper.cpp → editable transcript
 Reply → local macOS say / Piper → temporary WAV → browser playback
 ```
 
-`GET /api/status` returns safe account summaries, model choices and service status; no tokens. The browser’s `/api/auth/*` routes start/cancel sign-in, select accounts, acknowledge the welcome, and sign out. Authenticated requests go only to public OpenAI endpoints. No private backend-api endpoints, imported Codex tokens, or API keys are used.
+`GET /api/status` returns safe account summaries, model choices and service status; no tokens. The browser’s `/api/auth/*` routes start/resume/cancel sign-in, select accounts, acknowledge the welcome, and sign out. Authenticated requests go only to public OpenAI endpoints. No private backend-api endpoints, imported Codex tokens, or API keys are used.
 
 Both model adapters yield `{type:"token",content}` and `{type:"done",tokens}`. ChatGPT success requires `response.completed`; failed/incomplete/interrupted streams are not reported as complete. Voice files are temporary and removed after synthesis. No app actions, arbitrary command execution, general web search, or persistent chat memory are enabled.
 
@@ -134,7 +134,7 @@ npm test
 curl http://127.0.0.1:3210/api/status
 ```
 
-22 tests cover the initial Ollama adapter plus OAuth/PKCE wiring, browser/state/replay rejection, real RSA-signed ID-token validation, audience/issuer/expiry/nonce failures, missing plan permission, registration substitution, refresh rotation, protected file permissions, logout/revocation failure, account-specific model filtering, split UTF-8 SSE frames, late usage failures, cancellation, and bounded 401 retry.
+23 tests cover the initial Ollama adapter plus OAuth/PKCE wiring, browser/state/replay rejection, real RSA-signed ID-token validation, audience/issuer/expiry/nonce failures, missing plan permission, registration substitution, refresh rotation, protected file permissions, logout/revocation failure, account-specific model filtering, split UTF-8 SSE frames, late usage failures, cancellation, and bounded 401 retry.
 
 Authentication and Responses tests use synthetic credentials and mocked OpenAI endpoints. Live OpenAI subscription inference requires the user to finish sign-in; no existing Codex credential was copied to bypass that step. The initial local edition was smoke-tested with a real Ollama reply, a generated Daniel WAV and a Whisper synthetic-speech transcription. Physical microphone capture and Piper still need testing with the target devices/runtime.
 
@@ -167,3 +167,5 @@ The reference card includes an encyclopedia summary, a link to the article, and 
 For chat requests, retrieved snippets are quoted as untrusted reference data and the assistant is told to cite them using [1]. They never replace assistant instructions. Both ChatGPT and Ollama adapters support this enrichment. The app continues with ordinary chat if optional lookup fails. No paid search API is used. A 6.5-second lookup deadline, 15-minute/80-topic memory cache, and a 20-lookup/minute cap bound work. No cache is written to disk. In fully local Ollama use, turn Visual context off to prevent reference network requests.
 
 New implementation: server/references.js; POST /api/discover for explicit topic previews; activity and references events on the chat stream. Five additional tests cover query gating, cache reuse, fixed origins, URL/licence filtering, untrusted-data placement and cancellation. A live Saturn lookup was verified in the browser with its credited image.
+
+Sign-in recovery: a pending attempt keeps Continue sign-in enabled. Clicking it resumes the same browser-bound OAuth attempt without creating another registration. Cancel sign-in clears the attempt so a fresh one can start.
