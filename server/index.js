@@ -1,3 +1,4 @@
+import {ReferenceProvider,topicQuery} from './references.js';
 import http from 'node:http';
 import {readFile} from 'node:fs/promises';
 import {randomBytes} from 'node:crypto';
@@ -16,6 +17,7 @@ await lockRuntime(authDir);
 const auth=new ChatGPTAuth({dir:authDir,origin});
 await auth.ready;
 const provider=providerName==='chatgpt'?new ChatGPTProvider(auth):new OllamaProvider(localURL(process.env.OLLAMA_URL||'http://127.0.0.1:11434'),process.env.OLLAMA_MODEL||'qwen2.5:3b');
+const referenceProvider=new ReferenceProvider();
 const whisper=localURL(process.env.WHISPER_URL||'http://127.0.0.1:8080');
 const files={'/':['index.html','text/html'],'/app.js':['app.js','text/javascript'],'/styles.css':['styles.css','text/css']};
 const json=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(JSON.stringify(data));};
@@ -25,7 +27,7 @@ async function mutate(fn){if(accountMutation||activeChats.size)throw new AuthErr
 function cookie(req,name){return req.headers.cookie?.split(';').map(s=>s.trim()).find(s=>s.startsWith(name+'='))?.slice(name.length+1);}
 export const server=http.createServer(async(req,res)=>{
   res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Cache-Control','no-store');res.setHeader('Referrer-Policy','no-referrer');
-  res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; media-src 'self' blob:; img-src 'self' data:; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+  res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; media-src 'self' blob:; img-src 'self' data: https://upload.wikimedia.org https://thumb.wikimedia.org; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
   const host=req.headers.host;
   if(![`127.0.0.1:${port}`,`localhost:${port}`].includes(host))return json(res,403,{error:'Invalid host'});
   const url=new URL(req.url,origin),path=url.pathname;
@@ -52,6 +54,7 @@ export const server=http.createServer(async(req,res)=>{
       const stt=await fetch(whisper,{signal:AbortSignal.timeout(1500)}).then(r=>r.ok).catch(()=>false);
       return json(res,200,{provider:providerName,connected:models.length>0,auth:authState,models,defaultModel:providerName==='ollama'?provider.model:null,error,stt,tts:await voiceStatus(),ttsProvider});
     }
+    if(req.method==='POST'&&path==='/api/discover'){const{query}=JSON.parse(await body(req));if(typeof query!=='string'||query.length>160)throw new AuthError('Use a short public topic, up to 160 characters.','invalid_query',400);return json(res,200,await referenceProvider.lookup(query,controller.signal));}
     if(req.method==='POST'&&path==='/api/chat'){
       if(accountMutation)throw new AuthError('Wait for the account operation to finish.','auth_busy',409);
       const data=JSON.parse(await body(req));
@@ -59,7 +62,7 @@ export const server=http.createServer(async(req,res)=>{
       if(typeof data.model!=='string'||!data.model||data.model.length>160)return json(res,400,{error:'Choose a valid model'});
       if(providerName==='chatgpt'){const s=await auth.status();if(s.pending)throw new AuthError('Finish or cancel sign-in before chatting.','auth_busy',409);if(!s.signedIn||!s.planEnabled)throw new AuthError('Continue with ChatGPT and enable plan usage before chatting.');}
       activeChats.add(controller);res.writeHead(200,{'Content-Type':'application/x-ndjson'});res.flushHeaders();const signal=AbortSignal.any([controller.signal,AbortSignal.timeout(180000)]);
-      try{for await(const item of provider.chat(data.messages,data.model,signal))res.write(JSON.stringify(item)+'\n');}
+      try{let references=[];const query=data.visualContext!==false?topicQuery(data.messages.at(-1).content):null;if(query){res.write(JSON.stringify({type:'activity',text:'Looking up reference material'})+'\n');try{const result=await referenceProvider.lookup(query,signal);references=result.references;if(references.length)res.write(JSON.stringify({type:'references',...result})+'\n');}catch(e){if(signal.aborted)throw e;res.write(JSON.stringify({type:'activity',text:'References unavailable · continuing with chat'})+'\n');}}for await(const item of provider.chat(data.messages,data.model,signal,references))res.write(JSON.stringify(item)+'\n');}
       catch(e){if(!res.destroyed)res.write(JSON.stringify({type:'error',error:e.message,code:e.code,status:e.status,requestId:e.requestId})+'\n');}
       finally{activeChats.delete(controller);}return res.end();
     }

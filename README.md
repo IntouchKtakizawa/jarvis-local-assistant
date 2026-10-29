@@ -125,7 +125,7 @@ Reply → local macOS say / Piper → temporary WAV → browser playback
 
 `GET /api/status` returns safe account summaries, model choices and service status; no tokens. The browser’s `/api/auth/*` routes start/cancel sign-in, select accounts, acknowledge the welcome, and sign out. Authenticated requests go only to public OpenAI endpoints. No private backend-api endpoints, imported Codex tokens, or API keys are used.
 
-Both model adapters yield `{type:"token",content}` and `{type:"done",tokens}`. ChatGPT success requires `response.completed`; failed/incomplete/interrupted streams are not reported as complete. Voice files are temporary and removed after synthesis. No app actions, arbitrary command execution, internet search, or persistent chat memory are enabled.
+Both model adapters yield `{type:"token",content}` and `{type:"done",tokens}`. ChatGPT success requires `response.completed`; failed/incomplete/interrupted streams are not reported as complete. Voice files are temporary and removed after synthesis. No app actions, arbitrary command execution, general web search, or persistent chat memory are enabled.
 
 ## Tests and verification
 
@@ -134,7 +134,7 @@ npm test
 curl http://127.0.0.1:3210/api/status
 ```
 
-17 tests cover the initial Ollama adapter plus OAuth/PKCE wiring, browser/state/replay rejection, real RSA-signed ID-token validation, audience/issuer/expiry/nonce failures, missing plan permission, registration substitution, refresh rotation, protected file permissions, logout/revocation failure, account-specific model filtering, split UTF-8 SSE frames, late usage failures, cancellation, and bounded 401 retry.
+22 tests cover the initial Ollama adapter plus OAuth/PKCE wiring, browser/state/replay rejection, real RSA-signed ID-token validation, audience/issuer/expiry/nonce failures, missing plan permission, registration substitution, refresh rotation, protected file permissions, logout/revocation failure, account-specific model filtering, split UTF-8 SSE frames, late usage failures, cancellation, and bounded 401 retry.
 
 Authentication and Responses tests use synthetic credentials and mocked OpenAI endpoints. Live OpenAI subscription inference requires the user to finish sign-in; no existing Codex credential was copied to bypass that step. The initial local edition was smoke-tested with a real Ollama reply, a generated Daniel WAV and a Whisper synthetic-speech transcription. Physical microphone capture and Piper still need testing with the target devices/runtime.
 
@@ -155,3 +155,15 @@ Official references: [Sign-in](https://developers.openai.com/siwc/token-sharing-
 The updated workspace keeps the orb, voice button and conversation together, with account/model connections and voice preview in Settings. Talk to JARVIS uses the local microphone-to-Whisper path; transcripts still require review and Send. Read replies aloud enables local synthesis, and Stop speaking cancels playback.
 
 ChatGPT Voice Mode is not embedded in this app. The current ChatGPT plan sign-in route does not support audio input or transcription. A similar OpenAI-powered speech experience would require the separately billed Realtime API and API credentials; no such billing path is enabled here. See [subscription capabilities](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations) and [Realtime WebRTC](https://developers.openai.com/api/docs/guides/voice-webrtc).
+
+## Centered workspace and visual context
+
+The home screen centres the orb above a compact composer. The left rail offers New chat, a dedicated centred voice view and Settings. After the first message the orb becomes a small conversation indicator. Streaming text updates are batched to animation frames and scrolling follows output only when you remain near the bottom.
+
+Visual context is enabled by default and can be switched off in the composer. Short factual requests such as “Tell me about Saturn” or “Show me pictures of the James Webb Space Telescope” can trigger a Wikipedia lookup. Only the extracted topic is sent, not conversation history or account credentials. Personal/sensitive-query filtering is heuristic; turn the feature off for private conversations. A standalone Explore Saturn example works without signing into an AI model.
+
+The reference card includes an encyclopedia summary, a link to the article, and a Wikimedia image when a usable thumbnail and creator/licence metadata are available. Image credits link to Commons. No movie stills or generated images are promised. Images load from upload.wikimedia.org or thumb.wikimedia.org with no referrer. This is a public encyclopedia lookup, not a general news search. Results may be ambiguous, unavailable or incomplete.
+
+For chat requests, retrieved snippets are quoted as untrusted reference data and the assistant is told to cite them using [1]. They never replace assistant instructions. Both ChatGPT and Ollama adapters support this enrichment. The app continues with ordinary chat if optional lookup fails. No paid search API is used. A 6.5-second lookup deadline, 15-minute/80-topic memory cache, and a 20-lookup/minute cap bound work. No cache is written to disk. In fully local Ollama use, turn Visual context off to prevent reference network requests.
+
+New implementation: server/references.js; POST /api/discover for explicit topic previews; activity and references events on the chat stream. Five additional tests cover query gating, cache reuse, fixed origins, URL/licence filtering, untrusted-data placement and cancellation. A live Saturn lookup was verified in the browser with its credited image.

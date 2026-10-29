@@ -1,3 +1,4 @@
+import {referenceInput} from './references.js';
 import {SYSTEM} from './ollama.js';
 import {RESOURCE,AuthError} from './auth.js';
 const recovery={
@@ -32,9 +33,9 @@ export class ChatGPTProvider{
     if(!response.ok){let data;try{data=await response.json();}catch{data={};}throw upstreamError(data,response.status,response.headers.get('x-request-id'));}return response;
   }
   async models(){const response=await this.request('/models');const data=await response.json();if(!Array.isArray(data.models))throw new Error('OpenAI returned an unexpected ChatGPT model catalog.');return data.models.filter(m=>m.visibility==='list'&&typeof m.slug==='string').map(m=>({id:m.slug,name:m.display_name||m.slug}));}
-  async *chat(messages,model,signal){
+  async *chat(messages,model,signal,references=[]){
     if(!model)throw new AuthError('Choose a model available to your ChatGPT account.','model_required',400);
-    const response=await this.request('/responses',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model,instructions:SYSTEM.replace('personal local assistant','personal assistant'),input:messages.map(m=>({role:m.role,content:m.content})),store:false,stream:true}),signal});
+    const response=await this.request('/responses',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model,instructions:SYSTEM.replace('personal local assistant','personal assistant'),input:referenceInput(messages,references),store:false,stream:true}),signal});
     let complete=false;
     for await(const event of events(response.body)){
       if(event.type==='response.output_text.delta'&&typeof event.delta==='string')yield{type:'token',content:event.delta};
