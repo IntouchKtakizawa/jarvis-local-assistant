@@ -1,5 +1,6 @@
 # JARVIS · ChatGPT subscription edition
 
+[Live demo & setup](https://jarvis-local-assistant-demo.hahekenna.chatgpt.site) · [Download source](https://github.com/IntouchKtakizawa/jarvis-local-assistant/archive/refs/heads/main.zip)
 **Each person runs their own copy and signs into their own ChatGPT account. No developer account or credentials are included.**
 
 A personal, locally hosted sci-fi assistant with an animated orb/HUD, streamed chat, microphone transcription, and an original British-style synthetic assistant voice.
