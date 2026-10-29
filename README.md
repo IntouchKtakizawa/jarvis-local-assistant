@@ -149,3 +149,9 @@ Troubleshooting:
 - **Voice unavailable:** start Whisper, refresh connections, and check installed macOS voices or Piper configuration.
 
 Official references: [Sign-in](https://developers.openai.com/siwc/token-sharing-open-source/sign-in), [sessions and credentials](https://developers.openai.com/siwc/token-sharing-open-source/profiles-and-sessions), [models and inference](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference), [preview requirements](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations), [UI and plan usage](https://developers.openai.com/siwc/ui-ux-guidelines).
+
+## Workspace design and voice controls
+
+The updated workspace keeps the orb, voice button and conversation together, with account/model connections and voice preview in Settings. Talk to JARVIS uses the local microphone-to-Whisper path; transcripts still require review and Send. Read replies aloud enables local synthesis, and Stop speaking cancels playback.
+
+ChatGPT Voice Mode is not embedded in this app. The current ChatGPT plan sign-in route does not support audio input or transcription. A similar OpenAI-powered speech experience would require the separately billed Realtime API and API credentials; no such billing path is enabled here. See [subscription capabilities](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations) and [Realtime WebRTC](https://developers.openai.com/api/docs/guides/voice-webrtc).
