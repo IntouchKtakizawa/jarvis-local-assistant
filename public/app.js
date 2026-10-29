@@ -36,7 +36,7 @@ async function refresh({quiet=false}={}){
     for(const[id,ok]of [['ollama',status.connected],['stt',status.stt],['tts',status.tts]])$(`#${id}-dot`).classList.toggle('ok',Boolean(ok));
     $('#test-voice').disabled=!status.tts;$('#auto-speak').disabled=!status.tts;updateControls();if(!busy&&!recording&&!speechController)rest();
     if(!quiet)log(status.connected?'Intelligence connection checked':'Waiting for intelligence connection');
-    if(status.error)notice(status.error.message);else if(auth.error)notice(auth.error);else if(auth.pending)notice('Complete sign-in in the OpenAI window, or cancel to return.');else if(cloud&&!auth.signedIn)notice();else if(cloud&&!auth.planEnabled)notice('Sign in again and enable ChatGPT plan usage.');else if(!quiet)notice();
+    if(status.error)notice(status.error.message);else if(auth.error)notice(auth.error);else if(auth.pending)notice('Use Continue sign-in above to reopen OpenAI, or cancel in Settings.');else if(cloud&&!auth.signedIn)notice();else if(cloud&&!auth.planEnabled)notice('Sign in again and enable ChatGPT plan usage.');else if(!quiet)notice();
   }catch(e){notice(e.message);if(!quiet)log('Connection check failed');}finally{$('#refresh').disabled=false;}
 }
 function updateControls(){
