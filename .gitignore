@@ -1,0 +1,11 @@
+.env
+.env.*
+!.env.example
+models/*
+!models/.gitkeep
+.DS_Store
+*.log
+node_modules/
+
+# OAuth tokens, host identity, and runtime locks
+.local/
