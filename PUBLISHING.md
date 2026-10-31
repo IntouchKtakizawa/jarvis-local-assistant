@@ -1,9 +1,7 @@
-# Publication layout
+# GitHub Pages deployment
 
-This repository contains the personal local application and a static public demo in `website/`.
+The repository uses `.github/workflows/pages.yml` to test and build the static interface on pushes to main. In Settings → Pages, select **GitHub Actions** as the source. The build uploads only `dist/`; this folder is generated from `public/` and selected installed browser libraries.
 
-Each user runs their own backend and signs in with their own ChatGPT account. This repository contains no saved account records, OAuth credentials, `.env`, local host ID, or downloaded model binaries. Runtime files remain ignored and must not be published.
+Run `npm ci`, `npm test`, and `npm run build:pages` to verify locally. Never upload `.local/`, `.env`, `models/`, `node_modules/`, `work/` or `outputs/`.
 
-The `website/` directory is a static demo and download/setup guide. Its example replies are scripted and labelled. It makes no AI requests, asks for no credentials or microphone permission, and has no account backend. The site is hosted separately from the local application.
-
-Do not publicly host `server/index.js`. See SECURITY.md.
+The backend remains on the Mac at http://127.0.0.1:3210/. Generate a one-time pairing code in the local app and enter it in the hosted interface. The backend accepts only the configured exact web origin and a valid paired-browser token. Account sign-in and pairing administration remain local. GitHub Pages cannot execute the Node backend.

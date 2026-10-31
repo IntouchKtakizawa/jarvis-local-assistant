@@ -33,6 +33,19 @@ export class ChatGPTProvider{
     if(!response.ok){let data;try{data=await response.json();}catch{data={};}throw upstreamError(data,response.status,response.headers.get('x-request-id'));}return response;
   }
   async models(){const response=await this.request('/models');const data=await response.json();if(!Array.isArray(data.models))throw new Error('OpenAI returned an unexpected ChatGPT model catalog.');return data.models.filter(m=>m.visibility==='list'&&typeof m.slug==='string').map(m=>({id:m.slug,name:m.display_name||m.slug}));}
+  async agentTurn(input,model,tools,signal,instructions){
+    const response=await this.request('/responses',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model,instructions,input,tools:tools.length?[{type:'namespace',name:'jarvis',description:'Jarvis add-ons. These execute in the local application and display real UI panels.',tools}]:undefined,include:['reasoning.encrypted_content'],store:false,stream:true}),signal});
+    let complete=false,text='',output=[],items=[];
+    for await(const event of events(response.body)){
+      if(event.type==='response.output_text.delta')text+=event.delta||'';
+      if(event.type==='response.output_item.done'&&event.item)items.push(event.item);
+      if(event.type==='response.completed'){complete=true;output=event.response?.output?.length?event.response.output:items;}
+      if(event.type==='response.failed'||event.type==='error')throw upstreamError(event.response||event,502,response.headers.get('x-request-id'));
+      if(event.type==='response.incomplete')throw new Error('The agent response was incomplete. Please retry.');
+    }
+    if(!complete)throw new Error('The agent stream ended before completion.');
+    return {output,text:text||output.filter(i=>i.type==='message').flatMap(i=>i.content||[]).filter(c=>c.type==='output_text').map(c=>c.text).join(''),calls:output.filter(i=>i.type==='function_call')};
+  }
   async *chat(messages,model,signal,references=[]){
     if(!model)throw new AuthError('Choose a model available to your ChatGPT account.','model_required',400);
     const response=await this.request('/responses',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model,instructions:SYSTEM.replace('personal local assistant','personal assistant'),input:referenceInput(messages,references),store:false,stream:true}),signal});

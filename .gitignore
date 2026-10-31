@@ -9,3 +9,8 @@ node_modules/
 
 # OAuth tokens, host identity, and runtime locks
 .local/
+
+# Deployment output and local QA
+dist/
+work/
+outputs/

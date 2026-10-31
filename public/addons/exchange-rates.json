@@ -1,0 +1,10 @@
+{
+  "id": "exchange_rates",
+  "name": "Exchange rates",
+  "description": "Get reference currency exchange rates for currency conversion questions.",
+  "endpoint": "https://api.frankfurter.dev/v1/latest",
+  "parameters": {
+    "base": "Three-letter base ISO currency code, for example USD",
+    "symbols": "Three-letter target ISO currency code, for example THB"
+  }
+}

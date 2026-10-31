@@ -1,6 +1,6 @@
 {
-  "name": "jarvis-local-assistant",
-  "version": "0.2.0",
+  "name": "kenta-jarvis",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -8,9 +8,13 @@
   },
   "scripts": {
     "start": "node --env-file-if-exists=.env server/index.js",
-    "test": "node --test"
+    "test": "node --test test/*.test.js",
+    "build:pages": "node scripts/build-pages.js"
   },
   "dependencies": {
-    "jose": "^6.2.14"
+    "dompurify": "^3.4.17",
+    "jose": "^6.2.14",
+    "leaflet": "^1.9.4",
+    "marked": "^17.0.6"
   }
 }

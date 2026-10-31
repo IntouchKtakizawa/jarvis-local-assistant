@@ -41,7 +41,7 @@ export class ChatGPTAuth {
     const p={state:random(),nonce:random(),verifier,binding:browserBinding,expires:Date.now()+10*60*1000,redirect:`${this.origin}/auth/callback`,accountId:account?.id,clientId:account?.client_id};
     this.pending=p;this.lastError=null;
     const url=new URL(d.authorization_endpoint);const params={client_id:p.clientId||'dynamic_agent_client',ext_agent_host_id:this.data.hostId,response_type:'code',redirect_uri:p.redirect,scope:SCOPES,resource:RESOURCE,state:p.state,nonce:p.nonce,code_challenge_method:'S256',code_challenge:createHash('sha256').update(verifier).digest('base64url')};
-    if(!account)params.agent_name_hint='JARVIS';
+    if(!account)params.agent_name_hint='Kenta JARVIS';
     else{if(account.id_token)params.id_token_hint=account.id_token;if(account.email)params.login_hint=account.email;if(!account.scopes?.includes(PLAN_SCOPE))params.prompt='consent';}
     for(const [key,value]of Object.entries(params))url.searchParams.set(key,value);
     p.authorizationURL=url.href;return url.href;
