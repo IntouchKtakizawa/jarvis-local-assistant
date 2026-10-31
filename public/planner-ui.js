@@ -1,27 +1,220 @@
-const el=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;};
-const shift=(date,n)=>{const d=new Date(date+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
-const format=(date,options)=>new Intl.DateTimeFormat('en',{...options,timeZone:'UTC'}).format(new Date(date+'T12:00:00Z'));
-export function renderPlanner(data,reply,account='local'){
- const key='jarvis.planner.v1.'+account,card=el('section','planner-card');let start=data.startDate;
- const read=()=>{try{const saved=JSON.parse(localStorage.getItem(key)||'[]');return Array.isArray(saved)?saved.filter(e=>e&&typeof e.id==='string'&&typeof e.title==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(e.date)&&/^\d{2}:\d{2}$/.test(e.time||'')).slice(0,500):[];}catch{return [];}};
- let events=read();const save=()=>{try{localStorage.setItem(key,JSON.stringify(events));window.dispatchEvent(new CustomEvent('jarvis-planner-updated',{detail:key}));return true;}catch{status.textContent='Browser storage is unavailable. Your changes will last for this session.';return false;}};
- const heading=el('div','panel-heading'),headingCopy=el('div');headingCopy.append(el('div','visual-eyebrow','YOUR WEEK · LOCAL PLANNER'),el('h3','','Calendar'));const badge=el('span','planner-local-badge','Google Calendar not connected');heading.append(headingCopy,badge);
- const toolbar=el('div','planner-toolbar'),range=el('strong','planner-range'),nav=el('div','planner-nav');
- const prev=el('button','','‹'),today=el('button','','Today'),next=el('button','','›'),add=el('button','planner-add','+ Add plan');for(const b of [prev,today,next,add])b.type='button';prev.setAttribute('aria-label','Previous seven days');next.setAttribute('aria-label','Next seven days');nav.append(prev,today,next);toolbar.append(range,nav,add);
- const grid=el('div','planner-grid');grid.setAttribute('aria-label','Seven-day calendar');const editor=el('form','planner-editor');editor.hidden=true;
- const field=(title,type,name)=>{const label=el('label'),input=el('input');label.append(el('span','',title),input);input.type=type;input.name=name;input.required=true;return{label,input};};
- const name=field('Plan','text','title'),date=field('Date','date','date'),time=field('Time','time','time');name.input.placeholder='Study, gym, dinner…';name.input.maxLength=180;date.input.value=start;time.input.value='09:00';const actions=el('div','planner-editor-actions'),submit=el('button','planner-add','Save plan'),cancel=el('button','panel-link','Cancel');submit.type='submit';cancel.type='button';actions.append(submit,cancel);editor.append(name.label,date.label,time.label,actions);
- const status=el('p','planner-status','Add your plans here. Saved in this browser; no Google events have been loaded.');status.setAttribute('role','status');const footer=el('div','planner-foot',`Time zone: ${data.timeZone} · Local plans`);
- function open(day=start){date.input.value=day;editor.hidden=false;name.input.focus({preventScroll:true});}
- function draw(){range.textContent=format(start,{month:'short',day:'numeric'})+' – '+format(shift(start,6),{month:'short',day:'numeric',year:'numeric'});grid.replaceChildren();
-  for(let i=0;i<7;i++){const value=shift(start,i),day=el('section','planner-day');if(value===(data.today||data.startDate))day.classList.add('planner-day-today');const head=el('div','planner-day-heading');head.append(el('span','',format(value,{weekday:'short'})),el('strong','',format(value,{day:'numeric'})));const plans=el('div','planner-day-plans');
-   const items=events.filter(e=>e.date===value).sort((a,b)=>a.time.localeCompare(b.time));if(!items.length)plans.append(el('span','planner-empty','No plans yet'));
-   for(const event of items){const eventCard=el('div','planner-event'),remove=el('button','planner-remove','×');remove.type='button';remove.setAttribute('aria-label','Delete '+event.title);remove.addEventListener('click',()=>{events=events.filter(e=>e.id!==event.id);save();draw();});eventCard.append(el('time','',event.time),el('strong','',event.title),remove);plans.append(eventCard);}
-   const plus=el('button','planner-day-add','+');plus.type='button';plus.setAttribute('aria-label','Add plan for '+value);plus.addEventListener('click',()=>open(value));day.append(head,plans,plus);grid.append(day);
+const el = (tag, cls, text) => {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+};
+const shift = (date, n) => {
+  const d = new Date(date + "T12:00:00Z");
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+const format = (date, options) =>
+  new Intl.DateTimeFormat("en", { ...options, timeZone: "UTC" }).format(
+    new Date(date + "T12:00:00Z"),
+  );
+export function renderPlanner(data, reply, account = "local") {
+  const key = "jarvis.planner.v1." + account,
+    card = el("section", "planner-card");
+  let start = data.startDate;
+  const read = () => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(key) || "[]");
+      return Array.isArray(saved)
+        ? saved
+            .filter(
+              (e) =>
+                e &&
+                typeof e.id === "string" &&
+                typeof e.title === "string" &&
+                /^\d{4}-\d{2}-\d{2}$/.test(e.date) &&
+                /^\d{2}:\d{2}$/.test(e.time || ""),
+            )
+            .slice(0, 500)
+        : [];
+    } catch {
+      return [];
+    }
+  };
+  let events = read();
+  const save = () => {
+    try {
+      localStorage.setItem(key, JSON.stringify(events));
+      window.dispatchEvent(
+        new CustomEvent("jarvis-planner-updated", { detail: key }),
+      );
+      return true;
+    } catch {
+      status.textContent =
+        "Browser storage is unavailable. Your changes will last for this session.";
+      return false;
+    }
+  };
+  const heading = el("div", "panel-heading"),
+    headingCopy = el("div");
+  headingCopy.append(
+    el("div", "visual-eyebrow", "YOUR WEEK · LOCAL PLANNER"),
+    el("h3", "", "Calendar"),
+  );
+  const badge = el(
+    "span",
+    "planner-local-badge",
+    "Google Calendar not connected",
+  );
+  heading.append(headingCopy, badge);
+  const toolbar = el("div", "planner-toolbar"),
+    range = el("strong", "planner-range"),
+    nav = el("div", "planner-nav");
+  const prev = el("button", "", "‹"),
+    today = el("button", "", "Today"),
+    next = el("button", "", "›"),
+    add = el("button", "planner-add", "+ Add plan");
+  for (const b of [prev, today, next, add]) b.type = "button";
+  prev.setAttribute("aria-label", "Previous seven days");
+  next.setAttribute("aria-label", "Next seven days");
+  nav.append(prev, today, next);
+  toolbar.append(range, nav, add);
+  const grid = el("div", "planner-grid");
+  grid.setAttribute("aria-label", "Seven-day calendar");
+  const editor = el("form", "planner-editor");
+  editor.hidden = true;
+  const field = (title, type, name) => {
+    const label = el("label"),
+      input = el("input");
+    label.append(el("span", "", title), input);
+    input.type = type;
+    input.name = name;
+    input.required = true;
+    return { label, input };
+  };
+  const name = field("Plan", "text", "title"),
+    date = field("Date", "date", "date"),
+    time = field("Time", "time", "time");
+  name.input.placeholder = "Study, gym, dinner…";
+  name.input.maxLength = 180;
+  date.input.value = start;
+  time.input.value = "09:00";
+  const actions = el("div", "planner-editor-actions"),
+    submit = el("button", "planner-add", "Save plan"),
+    cancel = el("button", "panel-link", "Cancel");
+  submit.type = "submit";
+  cancel.type = "button";
+  actions.append(submit, cancel);
+  editor.append(name.label, date.label, time.label, actions);
+  const status = el(
+    "p",
+    "planner-status",
+    "Add your plans here. Saved in this browser; no Google events have been loaded.",
+  );
+  status.setAttribute("role", "status");
+  const footer = el(
+    "div",
+    "planner-foot",
+    `Time zone: ${data.timeZone} · Local plans`,
+  );
+  function open(day = start) {
+    date.input.value = day;
+    editor.hidden = false;
+    name.input.focus({ preventScroll: true });
   }
- }
- prev.addEventListener('click',()=>{start=shift(start,-7);draw();});next.addEventListener('click',()=>{start=shift(start,7);draw();});today.addEventListener('click',()=>{start=data.today||data.startDate;draw();});add.addEventListener('click',()=>open());cancel.addEventListener('click',()=>{editor.hidden=true;});
- editor.addEventListener('submit',e=>{e.preventDefault();const title=name.input.value.trim();if(!title)return;events.push({id:crypto.randomUUID(),title,date:date.input.value,time:time.input.value});const stored=save();if(date.input.value<start||date.input.value>shift(start,6))start=date.input.value;name.input.value='';editor.hidden=true;draw();if(stored)status.textContent='Plan saved in this browser.';});
- const onChange=e=>{if(e.detail===key){events=read();draw();}};window.addEventListener('jarvis-planner-updated',onChange);card.addEventListener('jarvis-dispose',()=>window.removeEventListener('jarvis-planner-updated',onChange),{once:true});
- draw();card.append(heading,toolbar,grid,editor,status,footer);reply.el.insertBefore(card,reply.content);
+  function draw() {
+    range.textContent =
+      format(start, { month: "short", day: "numeric" }) +
+      " – " +
+      format(shift(start, 6), {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    grid.replaceChildren();
+    for (let i = 0; i < 7; i++) {
+      const value = shift(start, i),
+        day = el("section", "planner-day");
+      if (value === (data.today || data.startDate))
+        day.classList.add("planner-day-today");
+      const head = el("div", "planner-day-heading");
+      head.append(
+        el("span", "", format(value, { weekday: "short" })),
+        el("strong", "", format(value, { day: "numeric" })),
+      );
+      const plans = el("div", "planner-day-plans");
+      const items = events
+        .filter((e) => e.date === value)
+        .sort((a, b) => a.time.localeCompare(b.time));
+      if (!items.length)
+        plans.append(el("span", "planner-empty", "No plans yet"));
+      for (const event of items) {
+        const eventCard = el("div", "planner-event"),
+          remove = el("button", "planner-remove", "×");
+        remove.type = "button";
+        remove.setAttribute("aria-label", "Delete " + event.title);
+        remove.addEventListener("click", () => {
+          events = events.filter((e) => e.id !== event.id);
+          save();
+          draw();
+        });
+        eventCard.append(
+          el("time", "", event.time),
+          el("strong", "", event.title),
+          remove,
+        );
+        plans.append(eventCard);
+      }
+      const plus = el("button", "planner-day-add", "+");
+      plus.type = "button";
+      plus.setAttribute("aria-label", "Add plan for " + value);
+      plus.addEventListener("click", () => open(value));
+      day.append(head, plans, plus);
+      grid.append(day);
+    }
+  }
+  prev.addEventListener("click", () => {
+    start = shift(start, -7);
+    draw();
+  });
+  next.addEventListener("click", () => {
+    start = shift(start, 7);
+    draw();
+  });
+  today.addEventListener("click", () => {
+    start = data.today || data.startDate;
+    draw();
+  });
+  add.addEventListener("click", () => open());
+  cancel.addEventListener("click", () => {
+    editor.hidden = true;
+  });
+  editor.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const title = name.input.value.trim();
+    if (!title) return;
+    events.push({
+      id: crypto.randomUUID(),
+      title,
+      date: date.input.value,
+      time: time.input.value,
+    });
+    const stored = save();
+    if (date.input.value < start || date.input.value > shift(start, 6))
+      start = date.input.value;
+    name.input.value = "";
+    editor.hidden = true;
+    draw();
+    if (stored) status.textContent = "Plan saved in this browser.";
+  });
+  const onChange = (e) => {
+    if (e.detail === key) {
+      events = read();
+      draw();
+    }
+  };
+  window.addEventListener("jarvis-planner-updated", onChange);
+  card.addEventListener(
+    "jarvis-dispose",
+    () => window.removeEventListener("jarvis-planner-updated", onChange),
+    { once: true },
+  );
+  draw();
+  card.append(heading, toolbar, grid, editor, status, footer);
+  reply.el.insertBefore(card, reply.content);
 }

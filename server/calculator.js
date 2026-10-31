@@ -1,1 +1,1 @@
-export {calculate} from '../public/ui-math.js';
+export { calculate } from "../public/ui-math.js";

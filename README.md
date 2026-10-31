@@ -2,7 +2,6 @@
 
 IMPORTANT : THIS AI IS MADE FOR ME PERSONALLY WHICH MEANS YOU NEED TO FINE TUNE IT TO YOUR LIKING
 
-
 A personal assistant with a futuristic Doge interface, native AI tool calling, visual answers, local voice, saved conversations, notes, personal memory and configurable add-ons.
 
 ## GitHub website

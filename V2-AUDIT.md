@@ -61,7 +61,6 @@ build and GitHub Actions. Runtime credentials and private data are gitignored.
 This plan covers the supplied V2 requirements; the submitted specification ends
 partway through section 4. No missing sections are assumed to have been supplied.
 
-
 ## Implemented results
 
 The existing shared prompt is now **814 characters**, with detailed coding

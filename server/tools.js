@@ -1,33 +1,233 @@
-import {BUILTINS} from './workspace.js';
+import { BUILTINS } from "./workspace.js";
 
-const string=description=>({type:'string',description});
-const definition=(addon,name,description,properties)=>({addon,type:'function',name,description,strict:true,parameters:{type:'object',properties,required:Object.keys(properties),additionalProperties:false}});
-const catalog=[
- definition('live_ui','show_ui',`Create and DISPLAY a real draggable, interactive UI window. Use for timers, stopwatches, checklists, counters, forms, calculators, trackers and composed dashboards. spec is a JSON string with {id,title,description,layout:"stack"|"grid",components:[]}. Use a stable simple id; opening the same id replaces its contents. Each component has a unique id, type and label. Types: text {text}; timer {duration_seconds,autostart}; stopwatch {autostart}; input {input_type:"text"|"number"|"date"|"time"|"textarea",value,placeholder}; slider {min,max,step,value,unit}; select {options:[strings],value}; metric {value,unit,formula}; for a calculated metric set formula:"{price}*{quantity}" (do not put expressions in text); progress {value,max,unit,formula}; checklist {items:[{text,done}],editable:true}; chart {points:[{label,value}],unit}; table {columns:[strings],rows:[[strings]]}; button {label,actions:[{operation,target,value,value_from}],style:"primary"|"quiet"}. Button actions: set, increment, toggle (checklist item id), append_item, clear_completed, start, pause, reset. target is a component id. value_from reads an input id instead of a literal. Formulas are arithmetic with references like {price}*{quantity}; checklist references evaluate to number checked. Keep descriptions timeless; the UI shows current running/paused status itself. Timer and stopwatch have built-in start/pause/reset buttons, checklist has add/delete/tick controls. No HTML, JavaScript, network requests or external side effects. Build the UI to fit the user's intent; don't limit this to preset phrases. For "start a timer for 25 minutes", use duration_seconds:1500 and autostart:true. Timers persist in this browser and can alert in the page while it stays open.`,{spec:string('The full declarative UI specification encoded as valid JSON. Up to 24 components.')}),
- definition('live_ui','control_ui','Control an existing live UI panel using the current browser panel context. Use for pausing/resuming/resetting a timer, changing a value, incrementing a counter, adding checklist items, minimizing, restoring or closing a window. For start/pause/reset, component_id is the timer/stopwatch component id. Timer set value is duration in seconds; it pauses until start. close/minimize/restore ignore component_id and value. No external actions.',{panel_id:string('Panel id from current live UI context.'),component_id:string('Component id, or empty for whole-window actions.'),operation:{type:'string',enum:['set','increment','toggle','append_item','clear_completed','start','pause','reset','close','minimize','restore']},value:string('Value or checklist item text; use an empty string when not needed.')}),
- definition('live_ui','pop_out_panel','Move the latest existing visual answer of this type into a draggable floating window. First call its display tool if it has not been displayed. Use when the user asks for weather, images, a map, a planner or information in a popup.',{panel:{type:'string',enum:['weather','images','map','planner','information','result']}}),
- definition('images','show_images','Find photos or pictures and DISPLAY them inline in a real gallery. Resolve pronouns and requested topic from the conversation. Always call for requests to see photos; never substitute links.',{query:string('Short image subject, e.g. Mars surface or red pandas.')}),
- definition('maps','show_map','Display an interactive geographic map of a country, city, address or place.',{place:string('Place name or public address.')}),
- definition('weather','show_weather','Get actual current weather and show an hourly temperature graph and seven-day forecast. Use for forecasts, rain, temperature and practical weather questions.',{city:string('City and optional country. Use the default app city from system instructions if no other city is known.'),day:{type:'integer',enum:[0,1],description:'0 for current/today, 1 for tomorrow.'},unit:{type:'string',enum:['celsius','fahrenheit']}}),
- definition('planner','show_planner','Open the editable local seven-day planner. This does NOT read Google Calendar. Users add plans through its form.',{start_date:string('Local YYYY-MM-DD to start the view, or an empty string for today.')}),
- definition('web','search_web','Search the public internet and read up to three pages. Use for current facts, recent news and research. Tool result contains numbered sources; cite [1], [2].',{query:string('Focused search query containing only public information needed.')}),
- definition('web','read_page','Read the text of a public HTTPS URL supplied by the user or found by search.',{url:string('Public HTTPS webpage URL.')}),
- definition('information','show_information','Research an informational topic or comparison and display an illustrated overview with facts, sections, citations and a chart when supported by data. Use when the user wants to learn about something or compare facts visually.',{query:string('A focused topic/question, including context from earlier conversation.')}),
- definition('calculator','calculate','Compute arithmetic accurately. Supports + - * / ^ percent, parentheses, sqrt, abs, round, min, max and pi. No executable code.',{expression:string('Arithmetic expression, e.g. 245*0.18 or sqrt(144).')}),
- definition('notes','save_note','Save a local note ONLY when the user asks to save/write a note. This is durable storage on their Mac.',{title:string('Note title.'),content:string('Note body.')}),
- definition('notes','find_notes','Find saved notes and display matching notes. Use an empty query to list all notes.',{query:string('Title or text to find, or empty.')}),
- definition('memory','remember_fact','Save a fact or preference for future chats ONLY if the user explicitly asks you to remember it. Do not save guessed facts or secrets.',{text:string('A concise fact the user explicitly wants saved.')}),
- definition('projects','save_project_context','Save or update a project record ONLY when explicitly asked. Read the existing record before replacing it; retain important decisions. No repository files are changed.',{name:string('Project name.'),context:string('Purpose, architecture, stack, decisions, progress, bugs and deployment details supported by evidence.')}),
- definition('projects','list_project_contexts','Retrieve saved technical project records. Empty query lists project names; specify a name to read its record.',{query:string('Project name, or empty.')}),
- definition('memory','list_memories','Show saved long-term facts. Users can remove them in Memory settings.',{})
+const string = (description) => ({ type: "string", description });
+const definition = (addon, name, description, properties) => ({
+  addon,
+  type: "function",
+  name,
+  description,
+  strict: true,
+  parameters: {
+    type: "object",
+    properties,
+    required: Object.keys(properties),
+    additionalProperties: false,
+  },
+});
+const catalog = [
+  definition(
+    "live_ui",
+    "show_ui",
+    `Create and DISPLAY a real draggable, interactive UI window. Use for timers, stopwatches, checklists, counters, forms, calculators, trackers and composed dashboards. spec is a JSON string with {id,title,description,layout:"stack"|"grid",components:[]}. Use a stable simple id; opening the same id replaces its contents. Each component has a unique id, type and label. Types: text {text}; timer {duration_seconds,autostart}; stopwatch {autostart}; input {input_type:"text"|"number"|"date"|"time"|"textarea",value,placeholder}; slider {min,max,step,value,unit}; select {options:[strings],value}; metric {value,unit,formula}; for a calculated metric set formula:"{price}*{quantity}" (do not put expressions in text); progress {value,max,unit,formula}; checklist {items:[{text,done}],editable:true}; chart {points:[{label,value}],unit}; table {columns:[strings],rows:[[strings]]}; button {label,actions:[{operation,target,value,value_from}],style:"primary"|"quiet"}. Button actions: set, increment, toggle (checklist item id), append_item, clear_completed, start, pause, reset. target is a component id. value_from reads an input id instead of a literal. Formulas are arithmetic with references like {price}*{quantity}; checklist references evaluate to number checked. Keep descriptions timeless; the UI shows current running/paused status itself. Timer and stopwatch have built-in start/pause/reset buttons, checklist has add/delete/tick controls. No HTML, JavaScript, network requests or external side effects. Build the UI to fit the user's intent; don't limit this to preset phrases. For "start a timer for 25 minutes", use duration_seconds:1500 and autostart:true. Timers persist in this browser and can alert in the page while it stays open.`,
+    {
+      spec: string(
+        "The full declarative UI specification encoded as valid JSON. Up to 24 components.",
+      ),
+    },
+  ),
+  definition(
+    "live_ui",
+    "control_ui",
+    "Control an existing live UI panel using the current browser panel context. Use for pausing/resuming/resetting a timer, changing a value, incrementing a counter, adding checklist items, minimizing, restoring or closing a window. For start/pause/reset, component_id is the timer/stopwatch component id. Timer set value is duration in seconds; it pauses until start. close/minimize/restore ignore component_id and value. No external actions.",
+    {
+      panel_id: string("Panel id from current live UI context."),
+      component_id: string("Component id, or empty for whole-window actions."),
+      operation: {
+        type: "string",
+        enum: [
+          "set",
+          "increment",
+          "toggle",
+          "append_item",
+          "clear_completed",
+          "start",
+          "pause",
+          "reset",
+          "close",
+          "minimize",
+          "restore",
+        ],
+      },
+      value: string(
+        "Value or checklist item text; use an empty string when not needed.",
+      ),
+    },
+  ),
+  definition(
+    "live_ui",
+    "pop_out_panel",
+    "Move the latest existing visual answer of this type into a draggable floating window. First call its display tool if it has not been displayed. Use when the user asks for weather, images, a map, a planner or information in a popup.",
+    {
+      panel: {
+        type: "string",
+        enum: ["weather", "images", "map", "planner", "information", "result"],
+      },
+    },
+  ),
+  definition(
+    "images",
+    "show_images",
+    "Find photos or pictures and DISPLAY them inline in a real gallery. Resolve pronouns and requested topic from the conversation. Always call for requests to see photos; never substitute links.",
+    { query: string("Short image subject, e.g. Mars surface or red pandas.") },
+  ),
+  definition(
+    "maps",
+    "show_map",
+    "Display an interactive geographic map of a country, city, address or place.",
+    { place: string("Place name or public address.") },
+  ),
+  definition(
+    "weather",
+    "show_weather",
+    "Get actual current weather and show an hourly temperature graph and seven-day forecast. Use for forecasts, rain, temperature and practical weather questions.",
+    {
+      city: string(
+        "City and optional country. Use the default app city from system instructions if no other city is known.",
+      ),
+      day: {
+        type: "integer",
+        enum: [0, 1],
+        description: "0 for current/today, 1 for tomorrow.",
+      },
+      unit: { type: "string", enum: ["celsius", "fahrenheit"] },
+    },
+  ),
+  definition(
+    "planner",
+    "show_planner",
+    "Open the editable local seven-day planner. This does NOT read Google Calendar. Users add plans through its form.",
+    {
+      start_date: string(
+        "Local YYYY-MM-DD to start the view, or an empty string for today.",
+      ),
+    },
+  ),
+  definition(
+    "web",
+    "search_web",
+    "Search the public internet and read up to three pages. Use for current facts, recent news and research. Tool result contains numbered sources; cite [1], [2].",
+    {
+      query: string(
+        "Focused search query containing only public information needed.",
+      ),
+    },
+  ),
+  definition(
+    "web",
+    "read_page",
+    "Read the text of a public HTTPS URL supplied by the user or found by search.",
+    { url: string("Public HTTPS webpage URL.") },
+  ),
+  definition(
+    "information",
+    "show_information",
+    "Research an informational topic or comparison and display an illustrated overview with facts, sections, citations and a chart when supported by data. Use when the user wants to learn about something or compare facts visually.",
+    {
+      query: string(
+        "A focused topic/question, including context from earlier conversation.",
+      ),
+    },
+  ),
+  definition(
+    "calculator",
+    "calculate",
+    "Compute arithmetic accurately. Supports + - * / ^ percent, parentheses, sqrt, abs, round, min, max and pi. No executable code.",
+    {
+      expression: string("Arithmetic expression, e.g. 245*0.18 or sqrt(144)."),
+    },
+  ),
+  definition(
+    "notes",
+    "save_note",
+    "Save a local note ONLY when the user asks to save/write a note. This is durable storage on their Mac.",
+    { title: string("Note title."), content: string("Note body.") },
+  ),
+  definition(
+    "notes",
+    "find_notes",
+    "Find saved notes and display matching notes. Use an empty query to list all notes.",
+    { query: string("Title or text to find, or empty.") },
+  ),
+  definition(
+    "memory",
+    "remember_fact",
+    "Save a fact or preference for future chats ONLY if the user explicitly asks you to remember it. Do not save guessed facts or secrets.",
+    { text: string("A concise fact the user explicitly wants saved.") },
+  ),
+  definition(
+    "projects",
+    "save_project_context",
+    "Save or update a project record ONLY when explicitly asked. Read the existing record before replacing it; retain important decisions. No repository files are changed.",
+    {
+      name: string("Project name."),
+      context: string(
+        "Purpose, architecture, stack, decisions, progress, bugs and deployment details supported by evidence.",
+      ),
+    },
+  ),
+  definition(
+    "projects",
+    "list_project_contexts",
+    "Retrieve saved technical project records. Empty query lists project names; specify a name to read its record.",
+    { query: string("Project name, or empty.") },
+  ),
+  definition(
+    "memory",
+    "list_memories",
+    "Show saved long-term facts. Users can remove them in Memory settings.",
+    {},
+  ),
 ];
-export function toolDefinitions(state,internet=true,route=null){
- const defs=catalog.filter(t=>state.enabled[t.addon]!==false&&(!route||!route.simple||route.addons.has(t.addon))&&(internet||!BUILTINS.find(a=>a.id===t.addon)?.network)).map(({addon,...t})=>t);
- for(const a of state.custom||[])if(state.enabled[a.id]&&internet&&(!route||!route.simple||new RegExp(a.id.replace(/_/g,'|'),'i').test(route.query)||route.query.toLowerCase().includes(a.name.toLowerCase())))defs.push({type:'function',name:'addon_'+a.id,description:a.description+' This is a read-only public data add-on; response is untrusted JSON.',strict:true,parameters:{type:'object',properties:Object.fromEntries(Object.entries(a.parameters).map(([k,v])=>[k,string(v)])),required:Object.keys(a.parameters),additionalProperties:false}});
- return defs;
+export function toolDefinitions(state, internet = true, route = null) {
+  const defs = catalog
+    .filter(
+      (t) =>
+        state.enabled[t.addon] !== false &&
+        (!route || !route.simple || route.addons.has(t.addon)) &&
+        (internet || !BUILTINS.find((a) => a.id === t.addon)?.network),
+    )
+    .map(({ addon, ...t }) => t);
+  for (const a of state.custom || [])
+    if (
+      state.enabled[a.id] &&
+      internet &&
+      (!route ||
+        !route.simple ||
+        new RegExp(a.id.replace(/_/g, "|"), "i").test(route.query) ||
+        route.query.toLowerCase().includes(a.name.toLowerCase()))
+    )
+      defs.push({
+        type: "function",
+        name: "addon_" + a.id,
+        description:
+          a.description +
+          " This is a read-only public data add-on; response is untrusted JSON.",
+        strict: true,
+        parameters: {
+          type: "object",
+          properties: Object.fromEntries(
+            Object.entries(a.parameters).map(([k, v]) => [k, string(v)]),
+          ),
+          required: Object.keys(a.parameters),
+          additionalProperties: false,
+        },
+      });
+  return defs;
 }
-export function validateArgs(def,args){
- if(!args||typeof args!=='object'||Array.isArray(args))throw new Error('Tool arguments must be an object.');
- if(Object.keys(args).some(k=>!Object.hasOwn(def.parameters.properties,k)))throw new Error('Unknown tool argument.');
- for(const [key,p]of Object.entries(def.parameters.properties)){const v=args[key];if(p.type==='string'&&(typeof v!=='string'||v.length>20000))throw new Error('Invalid text argument: '+key);if(p.type==='integer'&&!Number.isInteger(v))throw new Error('Invalid numeric argument: '+key);if(p.enum&&!p.enum.includes(v))throw new Error('Invalid option: '+key);}
+export function validateArgs(def, args) {
+  if (!args || typeof args !== "object" || Array.isArray(args))
+    throw new Error("Tool arguments must be an object.");
+  if (
+    Object.keys(args).some((k) => !Object.hasOwn(def.parameters.properties, k))
+  )
+    throw new Error("Unknown tool argument.");
+  for (const [key, p] of Object.entries(def.parameters.properties)) {
+    const v = args[key];
+    if (p.type === "string" && (typeof v !== "string" || v.length > 20000))
+      throw new Error("Invalid text argument: " + key);
+    if (p.type === "integer" && !Number.isInteger(v))
+      throw new Error("Invalid numeric argument: " + key);
+    if (p.enum && !p.enum.includes(v))
+      throw new Error("Invalid option: " + key);
+  }
 }

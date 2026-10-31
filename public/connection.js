@@ -1,17 +1,177 @@
-const local=['127.0.0.1','localhost','[::1]'].includes(location.hostname);
-const LOCAL='http://127.0.0.1:3210';
-const origin=()=>{if(local)return location.origin;try{const u=new URL(localStorage.getItem('jarvis.backend')||LOCAL);if(!['http:','https:'].includes(u.protocol)||u.username||u.password)throw Error();if(u.protocol==='http:'&&!['127.0.0.1','localhost'].includes(u.hostname))throw Error();return u.origin;}catch{return LOCAL;}};
-export async function apiFetch(path,options={}){const headers={...options.headers,'X-Jarvis-Client':'1'};if(!local){const token=localStorage.getItem('jarvis.pairedToken');if(!token)throw new Error('Pair this website with Jarvis on your Mac first.');headers['X-Jarvis-Pair']=token;}return fetch(origin()+path,{...options,headers,credentials:local?'same-origin':'omit'});}
-export const isHosted=!local;
-export function initConnection(){
- const open=document.createElement('button');open.className='rail-button';open.id='connection-open';open.title=local?'Pair a GitHub browser':'Connect to your Mac';open.setAttribute('aria-label',open.title);open.innerHTML='<span class="connection-symbol" aria-hidden="true">⌁</span><span class="nav-label">Connect devices</span>';document.querySelector('.rail').insertBefore(open,document.querySelector('.rail-bottom'));
- const dialog=document.createElement('dialog');dialog.className='connection-dialog';dialog.innerHTML='<div class="settings-heading"><div><div class="visual-eyebrow">GITHUB PAGES · LOCAL AI BACKEND</div><h2>Connect your Mac</h2></div><button class="close-button" aria-label="Close connection settings">×</button></div><div class="connection-body"></div>';document.body.append(dialog);const body=dialog.querySelector('.connection-body');dialog.querySelector('.close-button').onclick=()=>dialog.close();
- const p=document.createElement('p');p.textContent=local?'Generate a one-time code to pair your GitHub Pages browser. Paired browsers can use this Jarvis account while your Mac runs the backend. Only pair a browser you control.':'This interface is hosted on GitHub Pages. Your Mac runs the AI backend and keeps your account, conversations, notes and memory. Keep the Mac and Jarvis running. Pair this browser once to connect.';body.append(p);const status=document.createElement('p');status.className='connection-status';status.setAttribute('role','status');
- if(local){const generate=document.createElement('button');generate.className='planner-add';generate.textContent='Generate pairing code';const code=document.createElement('output');code.className='pairing-code';generate.onclick=async()=>{try{const r=await apiFetch('/api/bridge/code',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});const data=await r.json();if(!r.ok)throw Error(data.error);code.textContent=data.code;status.textContent='Expires in 10 minutes. Enter this code only on your GitHub Pages Jarvis website.';}catch(e){status.textContent=e.message;}};body.append(generate,code);
- const devices=document.createElement('div');devices.className='paired-devices';const load=async()=>{const r=await apiFetch('/api/bridge/devices');const data=await r.json();devices.replaceChildren();for(const d of data.devices||[]){const row=document.createElement('div'),label=document.createElement('span'),remove=document.createElement('button');label.textContent=d.label+' · '+d.origin;remove.textContent='Revoke';remove.className='text-button';remove.onclick=async()=>{await apiFetch('/api/bridge/revoke',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:d.id})});load();};row.append(label,remove);devices.append(row);}};body.append(devices);open.onclick=()=>{dialog.showModal();load().catch(e=>status.textContent=e.message);};
- }else{const localLink=document.createElement('a');localLink.href=LOCAL;localLink.target='_blank';localLink.rel='noopener noreferrer';localLink.textContent='1. Open Jarvis on this Mac ↗';localLink.className='connection-link';const instructions=document.createElement('p');instructions.textContent='In the local app, click ⌁ and Generate pairing code. Sign in with ChatGPT there if needed. Then enter the code below. Your browser may ask for local-network access; allow it to reach your own Mac.';const form=document.createElement('form');form.className='connection-form';const input=document.createElement('input');input.placeholder='XXXX-XXXX-XXXX';input.required=true;input.setAttribute('aria-label','Pairing code');input.autocomplete='off';const button=document.createElement('button');button.className='planner-add';button.textContent='Pair this browser';form.append(input,button);form.onsubmit=async e=>{e.preventDefault();button.disabled=true;try{const r=await fetch(origin()+'/api/bridge/pair',{method:'POST',headers:{'Content-Type':'application/json','X-Jarvis-Client':'1'},body:JSON.stringify({code:input.value,label:'GitHub Pages · '+navigator.platform}),credentials:'omit'});const data=await r.json();if(!r.ok)throw Error(data.error);localStorage.setItem('jarvis.pairedToken',data.token);location.reload();}catch(e){status.textContent=e.message==='Failed to fetch'?'Cannot reach Jarvis. Start it on your Mac, then allow local-network access if the browser asks.':e.message;}finally{button.disabled=false;}};body.append(localLink,instructions,form);open.onclick=()=>dialog.showModal();
- const strip=document.createElement('div');strip.className='hosted-connection-strip';strip.innerHTML='<span>GITHUB PAGES / MAC BACKEND</span>';const manage=document.createElement('button');manage.textContent='Connect to Mac';manage.onclick=()=>dialog.showModal();strip.append(manage);document.querySelector('main').prepend(strip);
- if(!localStorage.getItem('jarvis.pairedToken'))dialog.showModal();
- }
- body.append(status);return {open:()=>dialog.showModal(),local};
+const local = ["127.0.0.1", "localhost", "[::1]"].includes(location.hostname);
+const LOCAL = "http://127.0.0.1:3210";
+const origin = () => {
+  if (local) return location.origin;
+  try {
+    const u = new URL(localStorage.getItem("jarvis.backend") || LOCAL);
+    if (!["http:", "https:"].includes(u.protocol) || u.username || u.password)
+      throw Error();
+    if (
+      u.protocol === "http:" &&
+      !["127.0.0.1", "localhost"].includes(u.hostname)
+    )
+      throw Error();
+    return u.origin;
+  } catch {
+    return LOCAL;
+  }
+};
+export async function apiFetch(path, options = {}) {
+  const headers = { ...options.headers, "X-Jarvis-Client": "1" };
+  if (!local) {
+    const token = localStorage.getItem("jarvis.pairedToken");
+    if (!token)
+      throw new Error("Pair this website with Jarvis on your Mac first.");
+    headers["X-Jarvis-Pair"] = token;
+  }
+  return fetch(origin() + path, {
+    ...options,
+    headers,
+    credentials: local ? "same-origin" : "omit",
+  });
+}
+export const isHosted = !local;
+export function initConnection() {
+  const open = document.createElement("button");
+  open.className = "rail-button";
+  open.id = "connection-open";
+  open.title = local ? "Pair a GitHub browser" : "Connect to your Mac";
+  open.setAttribute("aria-label", open.title);
+  open.innerHTML =
+    '<span class="connection-symbol" aria-hidden="true">⌁</span><span class="nav-label">Connect devices</span>';
+  document
+    .querySelector(".rail")
+    .insertBefore(open, document.querySelector(".rail-bottom"));
+  const dialog = document.createElement("dialog");
+  dialog.className = "connection-dialog";
+  dialog.innerHTML =
+    '<div class="settings-heading"><div><div class="visual-eyebrow">GITHUB PAGES · LOCAL AI BACKEND</div><h2>Connect your Mac</h2></div><button class="close-button" aria-label="Close connection settings">×</button></div><div class="connection-body"></div>';
+  document.body.append(dialog);
+  const body = dialog.querySelector(".connection-body");
+  dialog.querySelector(".close-button").onclick = () => dialog.close();
+  const p = document.createElement("p");
+  p.textContent = local
+    ? "Generate a one-time code to pair your GitHub Pages browser. Paired browsers can use this Jarvis account while your Mac runs the backend. Only pair a browser you control."
+    : "This interface is hosted on GitHub Pages. Your Mac runs the AI backend and keeps your account, conversations, notes and memory. Keep the Mac and Jarvis running. Pair this browser once to connect.";
+  body.append(p);
+  const status = document.createElement("p");
+  status.className = "connection-status";
+  status.setAttribute("role", "status");
+  if (local) {
+    const generate = document.createElement("button");
+    generate.className = "planner-add";
+    generate.textContent = "Generate pairing code";
+    const code = document.createElement("output");
+    code.className = "pairing-code";
+    generate.onclick = async () => {
+      try {
+        const r = await apiFetch("/api/bridge/code", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: "{}",
+        });
+        const data = await r.json();
+        if (!r.ok) throw Error(data.error);
+        code.textContent = data.code;
+        status.textContent =
+          "Expires in 10 minutes. Enter this code only on your GitHub Pages Jarvis website.";
+      } catch (e) {
+        status.textContent = e.message;
+      }
+    };
+    body.append(generate, code);
+    const devices = document.createElement("div");
+    devices.className = "paired-devices";
+    const load = async () => {
+      const r = await apiFetch("/api/bridge/devices");
+      const data = await r.json();
+      devices.replaceChildren();
+      for (const d of data.devices || []) {
+        const row = document.createElement("div"),
+          label = document.createElement("span"),
+          remove = document.createElement("button");
+        label.textContent = d.label + " · " + d.origin;
+        remove.textContent = "Revoke";
+        remove.className = "text-button";
+        remove.onclick = async () => {
+          await apiFetch("/api/bridge/revoke", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: d.id }),
+          });
+          load();
+        };
+        row.append(label, remove);
+        devices.append(row);
+      }
+    };
+    body.append(devices);
+    open.onclick = () => {
+      dialog.showModal();
+      load().catch((e) => (status.textContent = e.message));
+    };
+  } else {
+    const localLink = document.createElement("a");
+    localLink.href = LOCAL;
+    localLink.target = "_blank";
+    localLink.rel = "noopener noreferrer";
+    localLink.textContent = "1. Open Jarvis on this Mac ↗";
+    localLink.className = "connection-link";
+    const instructions = document.createElement("p");
+    instructions.textContent =
+      "In the local app, click ⌁ and Generate pairing code. Sign in with ChatGPT there if needed. Then enter the code below. Your browser may ask for local-network access; allow it to reach your own Mac.";
+    const form = document.createElement("form");
+    form.className = "connection-form";
+    const input = document.createElement("input");
+    input.placeholder = "XXXX-XXXX-XXXX";
+    input.required = true;
+    input.setAttribute("aria-label", "Pairing code");
+    input.autocomplete = "off";
+    const button = document.createElement("button");
+    button.className = "planner-add";
+    button.textContent = "Pair this browser";
+    form.append(input, button);
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      button.disabled = true;
+      try {
+        const r = await fetch(origin() + "/api/bridge/pair", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Jarvis-Client": "1",
+          },
+          body: JSON.stringify({
+            code: input.value,
+            label: "GitHub Pages · " + navigator.platform,
+          }),
+          credentials: "omit",
+        });
+        const data = await r.json();
+        if (!r.ok) throw Error(data.error);
+        localStorage.setItem("jarvis.pairedToken", data.token);
+        location.reload();
+      } catch (e) {
+        status.textContent =
+          e.message === "Failed to fetch"
+            ? "Cannot reach Jarvis. Start it on your Mac, then allow local-network access if the browser asks."
+            : e.message;
+      } finally {
+        button.disabled = false;
+      }
+    };
+    body.append(localLink, instructions, form);
+    open.onclick = () => dialog.showModal();
+    const strip = document.createElement("div");
+    strip.className = "hosted-connection-strip";
+    strip.innerHTML = "<span>GITHUB PAGES / MAC BACKEND</span>";
+    const manage = document.createElement("button");
+    manage.textContent = "Connect to Mac";
+    manage.onclick = () => dialog.showModal();
+    strip.append(manage);
+    document.querySelector("main").prepend(strip);
+    if (!localStorage.getItem("jarvis.pairedToken")) dialog.showModal();
+  }
+  body.append(status);
+  return { open: () => dialog.showModal(), local };
 }
