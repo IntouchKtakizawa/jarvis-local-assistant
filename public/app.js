@@ -174,7 +174,7 @@ workspaceUI=initWorkspace({api:apiFetch,getAccount:()=>activeAccount,onResume:re
 log('Workspace initialised');refresh().then(async()=>{
  try{await workspaceUI.refresh();}catch(e){notice(e.message);}
  const params=new URLSearchParams(location.search),panel=params.get('panel');
- if(['addons','chats','memory','notes'].includes(params.get('workspace')))workspaceUI.open(params.get('workspace'));
+ if(['addons','chats','memory','notes','projects'].includes(params.get('workspace')))workspaceUI.open(params.get('workspace'));
  if(['map','calendar','images'].includes(panel)){$('#prompt').value=panel==='images'?`Show images of ${(params.get('topic')||'dogs').slice(0,160)}`:panel==='map'?'Show me a map of Thailand':'Show my calendar for the next 7 days';window.history.replaceState(null,'','/?v=agent');send();return;}
  try{const id=localStorage.getItem('jarvis.activeChat.'+(activeAccount||'local'));if(id){const chat=await workspaceUI.action({action:'getChat',id});if(chat)restoreConversation(chat);}}catch(e){notice('Your saved conversation could not be restored: '+e.message);}
 });

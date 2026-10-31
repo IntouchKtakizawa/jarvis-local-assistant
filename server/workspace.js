@@ -3,6 +3,7 @@ import {join} from 'node:path';
 import {createHash,randomUUID} from 'node:crypto';
 import {publicURL} from './web.js';
 export const BUILTINS=[
+ {id:'projects',name:'Project context',icon:'⌘',description:'Retrieve and maintain technical records for ongoing projects.',network:false},
  {id:'live_ui',name:'Live panels',icon:'◴',description:'Create draggable timers, checklists, calculators, forms and custom interactive dashboards.',network:false},
  {id:'web',name:'Web research',icon:'◎',description:'Search the internet and read public web pages.',network:true},
  {id:'images',name:'Image gallery',icon:'▧',description:'Find real photos and display them inline.',network:true},
@@ -14,7 +15,7 @@ export const BUILTINS=[
  {id:'notes',name:'Notes',icon:'▤',description:'Create, search and reopen local notes.',network:false},
  {id:'memory',name:'Personal memory',icon:'✧',description:'Remember facts you explicitly ask Jarvis to save. View or delete them any time.',network:false}
 ];
-const fresh=()=>({version:1,enabled:Object.fromEntries(BUILTINS.map(a=>[a.id,true])),custom:[],memory:[],notes:[],chats:[]});
+const fresh=()=>({version:1,enabled:Object.fromEntries(BUILTINS.map(a=>[a.id,true])),custom:[],memory:[],notes:[],projects:[],chats:[]});
 export function validateAddon(value){
  if(!value||typeof value!=='object')throw new Error('Import an add-on JSON document.');
  const id=String(value.id||'');if(!/^[a-z][a-z0-9_]{2,35}$/.test(id)||BUILTINS.some(a=>a.id===id))throw new Error('Add-on id must use 3–36 lowercase letters, numbers or underscores, and be unique.');
@@ -41,6 +42,15 @@ export class Workspace{
    if(data.action==='forget'){s.memory=s.memory.filter(m=>m.id!==data.id);return {ok:true};}
    if(data.action==='saveNote'){if(typeof data.title!=='string'||!data.title.trim()||typeof data.content!=='string'||data.content.length>20000)throw new Error('A note needs a title and up to 20,000 characters.');const existing=s.notes.find(n=>n.title===data.title.slice(0,150)&&n.content===data.content);if(existing)return existing;if(s.notes.length>=100)throw new Error('Your notebook is full. Remove a note first.');const note={id:randomUUID(),title:data.title.slice(0,150),content:data.content,updatedAt:new Date().toISOString()};s.notes.unshift(note);return note;}
    if(data.action==='deleteNote'){s.notes=s.notes.filter(n=>n.id!==data.id);return {ok:true};}
+   if(data.action==='saveProject'){
+    if(typeof data.name!=='string'||!data.name.trim()||data.name.length>100||typeof data.context!=='string'||!data.context.trim()||data.context.length>10000)throw new Error('A project needs a name and up to 10,000 characters of context.');
+    const aliases=data.aliases||[];if(!Array.isArray(aliases)||aliases.length>10||aliases.some(a=>typeof a!=='string'||!a.trim()||a.length>100))throw new Error('Use up to ten short project aliases.');
+    const existing=s.projects.find(p=>p.name.toLowerCase()===data.name.trim().toLowerCase());
+    if(!existing&&s.projects.length>=40)throw new Error('Remove a project before saving more than forty.');
+    const project={id:existing?.id||randomUUID(),name:existing?.name||data.name.trim(),aliases:data.aliases||existing?.aliases||[],context:data.context,updatedAt:new Date().toISOString()};
+    s.projects=s.projects.filter(p=>p.id!==project.id);s.projects.push(project);return project;
+   }
+   if(data.action==='deleteProject'){s.projects=s.projects.filter(p=>p.id!==data.id);return {ok:true};}
    if(data.action==='saveChat'){
     const c=data.chat;if(!c||typeof c.id!=='string'||!/^[a-zA-Z0-9-]{1,80}$/.test(c.id)||!Array.isArray(c.history)||c.history.length>78||!Array.isArray(c.turns)||c.turns.length>80)throw new Error('Invalid conversation.');
     if(c.history.some(m=>!['user','assistant'].includes(m.role)||typeof m.content!=='string'||m.content.length>50000))throw new Error('Invalid conversation messages.');
@@ -50,5 +60,5 @@ export class Workspace{
    throw new Error('Unknown workspace action.');
   });
  }
- async overview(account){const s=await this.get(account);return {addons:[...BUILTINS,...s.custom].map(a=>({...a,enabled:s.enabled[a.id]!==false})),memory:s.memory,notes:s.notes,chats:s.chats.map(({id,title,updatedAt})=>({id,title,updatedAt}))};}
+ async overview(account){const s=await this.get(account);return {addons:[...BUILTINS,...s.custom].map(a=>({...a,enabled:s.enabled[a.id]!==false})),memory:s.memory,notes:s.notes,projects:s.projects,chats:s.chats.map(({id,title,updatedAt})=>({id,title,updatedAt}))};}
 }

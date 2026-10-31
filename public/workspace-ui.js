@@ -1,6 +1,6 @@
 const el=(tag,cls,text)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;};
 export function initWorkspace({api,onResume,onDelete,getAccount}){
- let state={addons:[],memory:[],notes:[],chats:[]},tab='addons';
+ let state={addons:[],memory:[],notes:[],projects:[],chats:[]},tab='addons';
  const dialog=el('dialog','workbench');dialog.id='workbench';dialog.innerHTML='<div class="settings-heading"><div><div class="visual-eyebrow">JARVIS WORKSPACE</div><h2>Your assistant, extended.</h2></div><button class="close-button" aria-label="Close workspace">×</button></div><div class="workbench-tabs"></div><div class="workbench-feedback" role="status"></div><div class="workbench-body"></div>';
  document.body.append(dialog);dialog.querySelector('.close-button').onclick=()=>dialog.close();const tabs=dialog.querySelector('.workbench-tabs'),body=dialog.querySelector('.workbench-body'),feedback=dialog.querySelector('.workbench-feedback');
  async function action(data){const r=await api('/api/workspace',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...data,expectedAccount:getAccount?.()||undefined})});const result=await r.json();if(!r.ok)throw new Error(result.error);return result;}
@@ -8,7 +8,7 @@ export function initWorkspace({api,onResume,onDelete,getAccount}){
  async function run(fn){feedback.textContent='';try{await fn();await refresh();}catch(e){feedback.textContent=e.message;}}
  function open(next='addons'){tab=next;if(!dialog.open)dialog.showModal();draw();refresh().catch(e=>feedback.textContent=e.message);}
  function draw(){
-  tabs.replaceChildren();for(const [id,name,count]of [['addons','Add-ons',state.addons.filter(a=>a.enabled).length],['chats','Conversations',state.chats.length],['memory','Memory',state.memory.length],['notes','Notes',state.notes.length]]){const button=el('button',id===tab?'selected':'',`${name} ${count}`);button.onclick=()=>{tab=id;feedback.textContent='';draw();};tabs.append(button);}
+  tabs.replaceChildren();for(const [id,name,count]of [['addons','Add-ons',state.addons.filter(a=>a.enabled).length],['chats','Conversations',state.chats.length],['memory','Memory',state.memory.length],['notes','Notes',state.notes.length],['projects','Projects',(state.projects||[]).length]]){const button=el('button',id===tab?'selected':'',`${name} ${count}`);button.onclick=()=>{tab=id;feedback.textContent='';draw();};tabs.append(button);}
   body.replaceChildren();
   if(tab==='addons'){
    body.append(el('p','workbench-intro','The AI chooses from enabled tools. Switch an add-on off to remove it from the AI’s available actions.'));
@@ -21,9 +21,14 @@ export function initWorkspace({api,onResume,onDelete,getAccount}){
    for(const c of state.chats){const row=el('article','workspace-row'),copy=el('div');copy.append(el('strong','',c.title),el('small','',new Date(c.updatedAt).toLocaleString()));const resume=el('button','planner-add','Resume'),remove=el('button','text-button','Delete');resume.onclick=()=>run(async()=>{const chat=await action({action:'getChat',id:c.id});if(chat){await onResume(chat);dialog.close();}});remove.onclick=()=>run(async()=>{await action({action:'deleteChat',id:c.id});onDelete(c.id);});row.append(copy,resume,remove);body.append(row);}
   }
   if(tab==='memory'){
-   body.append(el('p','workbench-intro','Facts saved here are included in future chats when Personal memory is enabled. Jarvis saves a fact only when you ask it to remember one. You can also add or delete facts here.'));
+   body.append(el('p','workbench-intro','Relevant facts are retrieved for each request when Personal memory is enabled. Jarvis saves a fact only when you ask it to remember one. You can also add or delete facts here.'));
    const form=el('form','workspace-form'),input=el('textarea');input.rows=2;input.maxLength=1000;input.placeholder='A preference or fact you want Jarvis to remember…';input.setAttribute('aria-label','Memory to save');const save=el('button','planner-add','Remember');form.append(input,save);form.onsubmit=e=>{e.preventDefault();run(()=>action({action:'remember',text:input.value}));};body.append(form);
    for(const m of state.memory){const row=el('article','workspace-row');row.append(el('p','',m.text));const remove=el('button','text-button','Forget');remove.onclick=()=>run(()=>action({action:'forget',id:m.id}));row.append(remove);body.append(row);}if(!state.memory.length)body.append(el('div','workbench-empty','No saved facts yet.'));
+  }
+  if(tab==='projects'){
+   body.append(el('p','workbench-intro','Keep project purpose, architecture, stack, decisions, progress, bugs and deployment details here. Only relevant records accompany a request. Never store secrets.'));
+   const form=el('form','workspace-form'),name=el('input'),context=el('textarea'),save=el('button','planner-add','Save project');name.placeholder='Project name (for example StageWrite Studio)';name.required=true;name.maxLength=100;name.setAttribute('aria-label','Project name');context.placeholder='Purpose, architecture, stack, decisions, progress, bugs, repository and deployment…';context.rows=8;context.maxLength=10000;context.required=true;context.setAttribute('aria-label','Project context');form.append(name,context,save);form.onsubmit=e=>{e.preventDefault();run(()=>action({action:'saveProject',name:name.value,context:context.value}));};body.append(form);
+   for(const p of state.projects||[]){const row=el('article','workspace-note'),edit=el('button','text-button','Edit'),remove=el('button','text-button','Delete');edit.onclick=()=>{name.value=p.name;context.value=p.context;name.focus();};remove.onclick=()=>run(()=>action({action:'deleteProject',id:p.id}));const actions=el('div','project-actions');actions.append(edit,remove);row.append(el('h3','',p.name),el('p','',p.context),actions);body.append(row);}
   }
   if(tab==='notes'){
    body.append(el('p','workbench-intro','Ask Jarvis to save a note, or create one here. Notes stay on this Mac and are separate from chat context.'));

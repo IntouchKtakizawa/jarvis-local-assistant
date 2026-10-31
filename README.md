@@ -18,7 +18,7 @@ The default model is **GPT-6-Luna** through the existing official ChatGPT sign-i
 
 ## What changed
 
-Typed chat requests now all go to the model with an enabled-tool catalog. The model chooses native function calls, Jarvis executes validated tools locally, displays their real results, and sends those results back to the model. Tool status appears in the conversation. An image request is no longer routed by a list of particular phrases.
+Typed chat requests go to the model with a task-selected tool catalog. The model chooses native function calls, Jarvis executes validated tools locally, displays their real results, and sends those results back to the model. Tool status appears in the conversation. An image request is no longer routed by a list of particular phrases.
 
 The tool loop supports multiple calls and follow-ups, with a limit of 12 tool executions across seven model turns for one request. Tool errors are returned to the AI as errors, and unavailable/disabled tools cannot execute. The direct Find images button remains an explicit manual feature.
 
@@ -65,14 +65,26 @@ Custom add-ons cannot run arbitrary code, access local networks, inject browser 
 
 Conversations, notes, preferences and custom manifests are kept in protected, account-separated JSON files under `.local/workspace/`. Chat credentials remain in `.local/auth/`; neither directory belongs in source control or source packages.
 
-- One conversation retains up to 39 complete user/assistant exchanges in model context.
+- One conversation stores up to 39 complete user/assistant exchanges. Model context uses a 48,000-character recent-history budget, preserving complete exchanges and the latest request; matching older exchanges are included as bounded, labelled excerpts.
 - Up to 30 saved conversations are retained. Other archived chats are not automatically all included in prompts.
 - Up to 100 explicit personal-memory facts, at most 1,000 characters each, can be saved.
 - Up to 100 notes, at most 20,000 characters each, can be saved.
 - New chat clears the active context while leaving saved conversations and personal memory available.
 - Reload restores the active saved conversation. Export/backup the protected workspace folder yourself if you need an independent backup.
 
-Storage is local, but model inference is cloud-based by default. The active chat context and enabled personal-memory facts are sent to the connected model. Tool results used for a reply are also sent. Do not save secrets as personal memory.
+Storage is local, but model inference is cloud-based by default. The active chat context and relevant personal-memory facts and selected project records are sent to the connected model. Tool results used for a reply are also sent. Do not save secrets as personal memory.
+
+## Selective context and project records
+
+JARVIS classifies the current request using a small local ruleset before calling the model. Clear requests receive relevant tool groups only; ambiguous requests retain the enabled catalog as a compatibility fallback. Disabled add-ons and Internet restrictions still apply at execution. Email/GitHub requests never substitute public web search for absent private integrations. A percentage calculation uses only the local calculator; greetings use no tools.
+
+Memory retrieval ranks lexical matches, task categories and communication preferences, capped at 12 facts / 6,000 characters. Memory remains local and account-separated. It is not a semantic search engine; use clear names and keywords for reliable retrieval.
+
+Open **Workspace → Projects** to add or edit purpose, architecture, stack, decisions, current progress, bugs, repository and deployment information. Add future projects by name without changing code. Records are stored per account alongside notes, independently of the core prompt. StageWrite Studio, OpenBridge, KineticForm and Town Simulation names are recognized, but no technical facts are invented or preloaded. Chat can retrieve records and save them when explicitly requested. Disabling Project context excludes records and their tools.
+
+The core prompt is shared by both existing provider adapters. Relevant records have a 12,000-character budget; relevant older conversation excerpts have a 6,000-character budget. Tool outputs are limited per result and cumulatively, with explicit truncation notices; model tool-call records remain paired with outputs. Saved transcripts are preserved. These are character budgets, not model-specific token guarantees.
+
+The tool runner enforces explicit-request checks for model-originated memory, note and project writes. Existing tools cannot send email, publish, modify repositories, or delete files. Future consequential integrations need a real confirmation flow. UI results describe browser operations as requested where no rendering acknowledgment exists.
 
 ## Local voice
 
