@@ -37,16 +37,16 @@ async function refresh({quiet=false}={}){
     for(const account of auth.accounts){const option=document.createElement('option');option.value=account.id;option.textContent=account.label;$('#account').append(option);}
     const add=document.createElement('option');add.value='new';add.textContent='Add another ChatGPT account';$('#account').append(add);$('#account').value=selectedAccount==='new'?'new':auth.activeId||'new';
     $('#sign-in').textContent=auth.pending?'Continue sign-in ↗':auth.signedIn&&auth.planEnabled?'Sign in again with ChatGPT':'Continue with ChatGPT';
-    $('#sign-out').hidden=!auth.signedIn;$('#cancel-login').hidden=!auth.pending;$('#plan-indicator').hidden=!cloud||!auth.signedIn||!auth.planEnabled;
+    $('#account').disabled=isHosted;$('#sign-out').hidden=isHosted||!auth.signedIn;$('#cancel-login').hidden=!auth.pending;$('#plan-indicator').hidden=!cloud||!auth.signedIn||!auth.planEnabled;
     if(!auth.pending){$('#sign-in-link').hidden=true;clearInterval(authPolling);authPolling=null;}
-    if(auth.welcomeRequired&&auth.planEnabled&&!$('#plan-welcome').open){$('#settings').close();$('#plan-welcome').showModal();}
+    if(!isHosted&&auth.welcomeRequired&&auth.planEnabled&&!$('#plan-welcome').open){$('#settings').close();$('#plan-welcome').showModal();}
     $('#stt-state').textContent=status.stt?'whisper.cpp · ready':'Not running · see setup guide';
     $('#tts-state').textContent=status.tts?(status.ttsProvider==='macos'?'macOS · British English':'Piper · local voice'):'Not configured';
     for(const[id,ok]of [['ollama',status.connected],['stt',status.stt],['tts',status.tts]])$(`#${id}-dot`).classList.toggle('ok',Boolean(ok));
     $('#test-voice').disabled=!status.tts;$('#auto-speak').disabled=liveMode||!status.tts;updateControls();if(!busy&&!recording&&!speechController)rest();
     if(!quiet)log(status.connected?'Intelligence connection checked':'Waiting for intelligence connection');
     if(status.error)notice(status.error.message);else if(auth.error)notice(auth.error);else if(auth.pending)notice('Use Continue sign-in above to reopen OpenAI, or cancel in Settings.');else if(cloud&&!auth.signedIn)notice();else if(cloud&&!auth.planEnabled)notice('Sign in again and enable ChatGPT plan usage.');else if(!quiet)notice();
-  }catch(e){notice(e.message);if(!quiet)log('Connection check failed');}finally{$('#refresh').disabled=false;}
+  }catch(e){status.connected=false;updateControls();rest();if(isHosted){$('#connect-banner').hidden=true;$('#state').textContent='CONNECT YOUR MAC';$('#hud-state').textContent='CONNECT YOUR MAC';notice('Click Connect to Mac to pair this website with Jarvis.');}else notice(e.message);if(!quiet)log('Connection check failed');}finally{$('#refresh').disabled=false;}
 }
 function updateControls(){
  $('#memory-count').textContent=String(Math.ceil(history.length/2)).padStart(2,'0')+' / 39';
