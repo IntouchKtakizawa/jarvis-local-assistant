@@ -30,7 +30,7 @@ async function refresh({quiet=false}={}){
     if(!status.models.length){const option=document.createElement('option');option.textContent='Connect to load models';option.value='';$('#model').append(option);}
     $('#model').value=status.models.some(m=>m.id===current)?current:status.models.some(m=>m.id===status.defaultModel)?status.defaultModel:$('#model').options[0].value;
     const cloud=status.provider==='chatgpt',auth=status.auth;
-    $('.privacy').textContent=cloud?'YOUR ACCOUNT · LOCAL VOICE':'LOCAL AI · LOCAL VOICE';$('#model-short').textContent=$('#model').value||'Connect a model';$('.core-bottom span').textContent=cloud?'CHATGPT INFERENCE':'ON-DEVICE PROCESSING';$('.local-note p').textContent=cloud?'Chat uses your ChatGPT plan with OpenAI. Speech recognition and voice synthesis run on this Mac.':'Chat and speech run on your machine using Ollama, whisper.cpp, and local TTS.';$('#connect-banner').hidden=!cloud||(auth.signedIn&&auth.planEnabled);$('#connect').textContent=auth.pending?'Continue sign-in ↗':'Continue with ChatGPT';$('#account-card').hidden=!cloud;$('#intelligence-label').textContent=cloud?'ChatGPT intelligence':'Local intelligence';
+    $('.privacy').textContent=cloud?'YOUR ACCOUNT · LOCAL VOICE':'LOCAL AI · LOCAL VOICE';$('#model-short').textContent=($('#model').value||'Connect a model').replace(/^gpt-6-luna$/,'GPT-6 Luna');$('.core-bottom span').textContent=cloud?'CHATGPT INFERENCE':'ON-DEVICE PROCESSING';$('.local-note p').textContent=cloud?'Chat uses your ChatGPT plan with OpenAI. Speech recognition and voice synthesis run on this Mac.':'Chat and speech run on your machine using Ollama, whisper.cpp, and local TTS.';$('#connect-banner').hidden=!cloud||(auth.signedIn&&auth.planEnabled);$('#connect').textContent=auth.pending?'Continue sign-in ↗':'Continue with ChatGPT';$('#account-card').hidden=!cloud;$('#intelligence-label').textContent=cloud?'ChatGPT intelligence':'Local intelligence';
     $('#ollama-state').textContent=cloud?(status.connected?'Connected · ChatGPT plan':auth.signedIn?(auth.planEnabled?'Signed in · models unavailable':'Plan permission required'):'Not signed in'):status.connected?'Ollama · on this device':'Ollama offline';
     $('#auth-summary').textContent=auth.pending?'A sign-in is waiting. Continue below, or cancel to start again.':auth.signedIn?(auth.planEnabled?'Your ChatGPT plan is connected.':'Signed in. Enable plan usage to chat.'):'Use your ChatGPT plan. No API key needed.';
     $('#account').replaceChildren();
@@ -78,6 +78,8 @@ $('#visual-context').addEventListener('click',()=>{visualContext=!visualContext;
 $('#context-about').addEventListener('click',()=>{$('#settings').showModal();$('#context-info').open=true;$('#context-info').scrollIntoView({block:'center',behavior:'smooth'});});
 $('#messages').addEventListener('scroll',()=>{const m=$('#messages');followOutput=m.scrollHeight-m.scrollTop-m.clientHeight<100;},{passive:true});
 $('#memory-status').addEventListener('click',()=>workspaceUI.open('memory'));
+$('#chats-open').addEventListener('click',()=>workspaceUI.open('chats'));
+$('#memory-open').addEventListener('click',()=>workspaceUI.open('memory'));
 $('#workbench-open').addEventListener('click',()=>workspaceUI.open('addons'));
 $('#settings-close').addEventListener('click',()=>$('#settings').close());
 $('#talk').addEventListener('click',()=>$('#mic').click());
