@@ -3,6 +3,7 @@ import {join} from 'node:path';
 import {createHash,randomUUID} from 'node:crypto';
 import {publicURL} from './web.js';
 export const BUILTINS=[
+ {id:'live_ui',name:'Live panels',icon:'◴',description:'Create draggable timers, checklists, calculators, forms and custom interactive dashboards.',network:false},
  {id:'web',name:'Web research',icon:'◎',description:'Search the internet and read public web pages.',network:true},
  {id:'images',name:'Image gallery',icon:'▧',description:'Find real photos and display them inline.',network:true},
  {id:'maps',name:'Interactive maps',icon:'⌖',description:'Explore places with pan and zoom.',network:true},

@@ -24,6 +24,16 @@ The tool loop supports multiple calls and follow-ups, with a limit of 12 tool ex
 
 The ChatGPT connection uses namespaced function tools, `store:false`, `stream:true`, explicit conversation context, and `function_call_output` messages. Completed SSE output items are retained even when the final response’s output array is empty. See the official [preview limitations](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations) and [function-calling guide](https://developers.openai.com/api/docs/guides/function-calling).
 
+## Live interactive panels
+
+Ask naturally for an interface: “Start a timer for 25 minutes,” “Build a trip budget with editable costs and a running total,” “Make a packing checklist,” or “Give me a counter and a progress tracker.” The AI calls `show_ui` with a declarative component specification; the browser renders real controls. There is no phrase-based timer routing and no generated JavaScript execution.
+
+Panels support countdowns, stopwatches, editable checklists, text/number/date/time fields, sliders, selects, calculated metrics, progress bars, charts, tables, and buttons with local actions. Formulas can reference inputs, such as `{price}*{quantity}`. Chat follow-ups can pause a timer or change a panel value using `control_ui`. Panel titles are drag handles; arrow keys also move a focused title bar. Minimize sends a window to the panel dock, and Live panels brings windows back.
+
+Visual answers have **Pop out** controls, and the AI can move weather, maps, image galleries, planners and information cards into floating windows. These visual popouts last for the current page session. Composed live panels and their values persist per account in this browser. Timers use absolute deadlines, so a reload does not restart them; alerts appear in the page while it remains open. Closed browsers cannot show completion alerts. Opening an old conversation does not restart or reopen its timers automatically.
+
+This is a composable interface system for local browser interactions. Actions that use external accounts, run applications, or change external services still require an actual supported integration. Live panels can be disabled in Add-ons.
+
 ## Add-ons and workspace
 
 Click **⊞** in the top-right toolbar to open the workspace:

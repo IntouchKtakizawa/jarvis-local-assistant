@@ -1,3 +1,4 @@
+import {initFloatingUI} from './floating-ui.js';
 import {apiFetch,isHosted,initConnection} from './connection.js';
 import {initWorkspace,renderResult} from './workspace-ui.js';
 import {renderMessage} from './message-ui.js';
@@ -9,6 +10,7 @@ const $=s=>document.querySelector(s);
 const micIcon=$('#mic').innerHTML;
 const welcomeTemplate=$('#welcome').cloneNode(true);let visualContext=true,scrollFrame=null,followOutput=true;
 const connection=initConnection();
+const floatingUI=initFloatingUI();
 let authPolling=null,authWorking=false,activeAccount=null;
 let liveMode=false,liveTimer=null;
 let transcript=[],conversationId=null,restoring=false,workspaceUI;
@@ -24,7 +26,7 @@ async function refresh({quiet=false}={}){
   $('#refresh').disabled=true;
   try{const response=await apiFetch('/api/status');if(!response.ok)throw new Error('App connection unavailable');const next=await response.json();
     if(activeAccount&&activeAccount!==next.auth.activeId){history=[];transcript=[];conversationId=null;disposePanels();$('#messages').replaceChildren();message('assistant','Account changed. A fresh conversation is ready.');}
-    activeAccount=next.auth.activeId;status=next;document.body.dataset.connected=String(status.connected);
+    activeAccount=next.auth.activeId;floatingUI.setAccount(activeAccount||'guest');status=next;document.body.dataset.connected=String(status.connected);
     const selectedAccount=$('#account').value;const current=$('#model').value;$('#model').replaceChildren();
     for(const model of status.models){const option=document.createElement('option');option.value=model.id;option.textContent=model.name;$('#model').append(option);}
     if(!status.models.length){const option=document.createElement('option');option.textContent='Connect to load models';option.value='';$('#model').append(option);}
@@ -145,8 +147,8 @@ async function speak(text){stopSpeech();const epoch=speechEpoch; speechControlle
 async function send(){const text=$('#prompt').value.trim();if(!text||busy||recording||authWorking||status.auth?.pending)return;if(!status.connected){notice('Connect your intelligence account and select a model before sending.');return;}
   if(history.length>=78){notice('Conversation is full. Start a new conversation to continue.');return;}
   stopSpeech();notice();busy=true;updateControls();$('#prompt').value='';history.push({role:'user',content:text});message('user',text);const reply=message('assistant','');controller=new AbortController();let output='',complete=false,toolContext='';state('thinking');log(`Prompt sent to ${$('#model').value}`);
-  try{const response=await apiFetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:history,model:$('#model').value,visualContext,webSearch:visualContext,timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone}),signal:controller.signal});if(!response.ok)throw new Error((await response.json()).error);const reader=response.body.getReader(),decoder=new TextDecoder();let pending='';
-    while(true){const {value,done}=await reader.read();if(done)break;pending+=decoder.decode(value,{stream:true});let i;while((i=pending.indexOf('\n'))>=0){const line=pending.slice(0,i);pending=pending.slice(i+1);if(!line.trim())continue;const event=JSON.parse(line);if(event.type==='error')throw new Error(event.error);if(['images','map','planner','weather','information','references','result','tool'].includes(event.type))applyPanelEvent(event,reply);if(event.type==='workspace_changed')workspaceUI.refresh().catch(()=>{});if(event.type==='activity'){log(event.text);$('#state-detail').textContent=event.text;}if(event.type==='warning'){notice(event.text);log(event.text);}if(event.type==='token'){output+=event.content;if(!reply.frame)reply.frame=requestAnimationFrame(()=>{reply.frame=null;if(!reply.hasGallery)renderMessage(reply.content,output);scroll();});}if(event.type==='done'){complete=true;toolContext=event.context||'';}}}
+  try{const response=await apiFetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:history,model:$('#model').value,visualContext,webSearch:visualContext,timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone,liveUI:floatingUI.context()}),signal:controller.signal});if(!response.ok)throw new Error((await response.json()).error);const reader=response.body.getReader(),decoder=new TextDecoder();let pending='';
+    while(true){const {value,done}=await reader.read();if(done)break;pending+=decoder.decode(value,{stream:true});let i;while((i=pending.indexOf('\n'))>=0){const line=pending.slice(0,i);pending=pending.slice(i+1);if(!line.trim())continue;const event=JSON.parse(line);if(event.type==='error')throw new Error(event.error);if(['images','map','planner','weather','information','references','result','tool','ui','ui_control','ui_popout'].includes(event.type))applyPanelEvent(event,reply);if(event.type==='workspace_changed')workspaceUI.refresh().catch(()=>{});if(event.type==='activity'){log(event.text);$('#state-detail').textContent=event.text;}if(event.type==='warning'){notice(event.text);log(event.text);}if(event.type==='token'){output+=event.content;if(!reply.frame)reply.frame=requestAnimationFrame(()=>{reply.frame=null;if(!reply.hasGallery)renderMessage(reply.content,output);scroll();});}if(event.type==='done'){complete=true;toolContext=event.context||'';}}}
     if(!complete)throw new Error('Response was interrupted. Please retry.');if(!output.trim())throw new Error('The model returned no text. Try another prompt or model.');
     if(reply.frame)cancelAnimationFrame(reply.frame);reply.frame=null;if(!reply.hasGallery)renderMessage(reply.content,output);reply.record.text=output;history.push({role:'assistant',content:output+(toolContext?'\n\n[Completed tools: '+toolContext+']':'')});saveConversation();log('Response complete');const listen=document.createElement('button');listen.className='replay';listen.textContent='▷ Listen';listen.addEventListener('click',()=>{if(!busy&&!recording)speak(output);});reply.el.append(listen);
   }catch(e){if(reply.frame)cancelAnimationFrame(reply.frame);reply.frame=null;complete=false;history.pop();reply.el.classList.add('failed');reply.record.text=output||'Response failed.';reply.content.textContent=(output?output+'\n\n':'')+(e.name==='AbortError'?'Response stopped.':e.message);if(liveMode)endLive();log(e.name==='AbortError'?'Response stopped':'Response failed');notice('Your prompt is back in the composer so you can retry.');$('#prompt').value=text;}
@@ -184,14 +186,21 @@ function applyPanelEvent(event,reply){
   let label=reply.toolLabels[event.name];if(!label){label=document.createElement('span');reply.tools.append(label);reply.toolLabels[event.name]=label;}
   label.dataset.status=event.status;label.textContent=(event.status==='running'?'◌ ':event.status==='complete'?'✓ ':'! ')+event.name.replace(/_/g,' ');if(event.error)label.title=event.error;return;
  }
+ if(event.type==='ui'){
+  try{if(!restoring)floatingUI.open(event.spec,event.issuedAt);const chip=document.createElement('button');chip.className='live-panel-link';chip.textContent='◴ '+event.spec.title+' ↗';chip.onclick=()=>{try{floatingUI.reopen(event.spec);}catch(e){floatingUI.notify(e.message);}};reply.el.insertBefore(chip,reply.content);}catch(e){floatingUI.notify(e.message);}return;
+ }
+ if(event.type==='ui_control'){if(!restoring)try{floatingUI.control(event);}catch(e){floatingUI.notify(e.message);}return;}
+ if(event.type==='ui_popout'){if(!restoring)try{floatingUI.floatVisual(event.panel);}catch(e){floatingUI.notify(e.message);}return;}
  if(event.type==='references'){renderReferences(event.references,reply);return;}
  document.body.dataset.view='chat';$('#view-toggle').setAttribute('aria-pressed','false');
+ const before=new Set(reply.el.children);
  if(event.type==='images')renderImages(event.images,reply);
  if(event.type==='map')renderMap(event.map,reply);
  if(event.type==='planner')renderPlanner(event.planner,reply,activeAccount||'local');
  if(event.type==='weather')renderWeather(event.forecast,reply);
  if(event.type==='information')renderInformation(event.info,reply);
  if(event.type==='result')renderResult(event,reply);
+ for(const node of reply.el.children)if(!before.has(node)&&node!==reply.content&&!node.classList.contains('tool-trace'))floatingUI.enhance(node,event.type,event.type==='weather'?'Weather forecast':event.type==='images'?'Image gallery':event.type==='planner'?'Your planner':event.type==='map'?'Interactive map':event.type==='information'?'Visual overview':'Result');
  if(!restoring)revealVisual(reply);
 }
 async function saveConversation(){

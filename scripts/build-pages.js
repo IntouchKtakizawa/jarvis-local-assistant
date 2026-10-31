@@ -1,7 +1,7 @@
 import {mkdir,rm,cp,readFile,writeFile,readdir} from 'node:fs/promises';
 import {join,resolve} from 'node:path';
 import {createHash} from 'node:crypto';
-const revision=createHash('sha256').update(await readFile(new URL('../public/app.js',import.meta.url))).update(await readFile(new URL('../public/connection.js',import.meta.url))).update(await readFile(new URL('../public/futuristic.css',import.meta.url))).update(await readFile(new URL('../public/index.html',import.meta.url))).digest('hex').slice(0,12);
+const revision=createHash('sha256').update(await readFile(new URL('../public/app.js',import.meta.url))).update(await readFile(new URL('../public/connection.js',import.meta.url))).update(await readFile(new URL('../public/futuristic.css',import.meta.url))).update(await readFile(new URL('../public/index.html',import.meta.url))).update(await readFile(new URL('../public/floating-ui.js',import.meta.url))).update(await readFile(new URL('../public/ui-spec.js',import.meta.url))).update(await readFile(new URL('../public/ui-math.js',import.meta.url))).digest('hex').slice(0,12);
 const root=resolve(import.meta.dirname,'..'),dist=join(root,'dist');
 await rm(dist,{recursive:true,force:true});await mkdir(dist,{recursive:true});
 await cp(join(root,'public'),dist,{recursive:true,filter:source=>!source.endsWith('doge.png')});
