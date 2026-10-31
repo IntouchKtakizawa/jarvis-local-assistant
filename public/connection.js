@@ -1,7 +1,7 @@
 const local=['127.0.0.1','localhost','[::1]'].includes(location.hostname);
 const LOCAL='http://127.0.0.1:3210';
 const origin=()=>{if(local)return location.origin;try{const u=new URL(localStorage.getItem('jarvis.backend')||LOCAL);if(!['http:','https:'].includes(u.protocol)||u.username||u.password)throw Error();if(u.protocol==='http:'&&!['127.0.0.1','localhost'].includes(u.hostname))throw Error();return u.origin;}catch{return LOCAL;}};
-export async function apiFetch(path,options={}){const headers={...options.headers,'X-Jarvis-Client':'1'};if(!local){const token=localStorage.getItem('jarvis.pairedToken');if(token)headers['X-Jarvis-Pair']=token;}return fetch(origin()+path,{...options,headers,credentials:local?'same-origin':'omit'});}
+export async function apiFetch(path,options={}){const headers={...options.headers,'X-Jarvis-Client':'1'};if(!local){const token=localStorage.getItem('jarvis.pairedToken');if(!token)throw new Error('Pair this website with Jarvis on your Mac first.');headers['X-Jarvis-Pair']=token;}return fetch(origin()+path,{...options,headers,credentials:local?'same-origin':'omit'});}
 export const isHosted=!local;
 export function initConnection(){
  const open=document.createElement('button');open.className='rail-button';open.id='connection-open';open.title=local?'Pair a GitHub browser':'Connect to your Mac';open.setAttribute('aria-label',open.title);open.textContent='⌁';document.querySelector('.rail').insertBefore(open,document.querySelector('.rail-bottom'));
