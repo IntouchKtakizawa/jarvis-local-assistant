@@ -1,3 +1,4 @@
+import {safeError} from './privacy.js';
 import {BrowserBridge} from './browser-bridge.js';
 import {Workspace} from './workspace.js';
 import {runAgent} from './agent.js';
@@ -77,7 +78,7 @@ export const server=http.createServer(async(req,res)=>{
     if(req.method==='POST'&&path==='/api/auth/welcome'){await auth.welcome();return json(res,200,{ok:true});}
     if(req.method==='GET'&&path==='/api/status'){
       const authState=await auth.status();let models=[],error=null;
-      try{if(providerName==='ollama')models=(await provider.models()).map(id=>({id,name:id}));else if(authState.signedIn&&authState.planEnabled)models=await provider.models();}catch(e){error={message:e.message,code:e.code,status:e.status,requestId:e.requestId};}
+      try{if(providerName==='ollama')models=(await provider.models()).map(id=>({id,name:id}));else if(authState.signedIn&&authState.planEnabled)models=await provider.models();}catch(e){error={message:safeError(e),code:e.code,status:e.status,requestId:e.requestId};}
       const stt=await fetch(whisper,{signal:AbortSignal.timeout(1500)}).then(r=>r.ok).catch(()=>false);
       return json(res,200,{provider:providerName,connected:models.length>0,auth:authState,models,defaultModel:providerName==='ollama'?provider.model:'gpt-6-luna',error,stt,tts:await voiceStatus(),ttsProvider});
     }
@@ -91,17 +92,21 @@ export const server=http.createServer(async(req,res)=>{
       if(!Array.isArray(data.messages)||!data.messages.length||data.messages.length>80||data.messages.some(m=>!m||!['user','assistant'].includes(m.role)||typeof m.content!=='string'||m.content.length>32000)||data.messages.at(-1).role!=='user')return json(res,400,{error:'Invalid conversation'});
       if(typeof data.model!=='string'||!data.model||data.model.length>160)return json(res,400,{error:'Choose a valid model'});
       if(providerName==='chatgpt'){const s=await auth.status();if(s.pending)throw new AuthError('Finish or cancel sign-in before chatting.','auth_busy',409);if(!s.signedIn||!s.planEnabled)throw new AuthError('Continue with ChatGPT and enable plan usage before chatting.');}
+      if(data.conversationId!==undefined&&(typeof data.conversationId!=='string'||!/^[a-zA-Z0-9-]{1,80}$/.test(data.conversationId)))throw new AuthError('Invalid conversation id.','invalid_conversation',400);
+      const account=await workspaceAccount();
+      if(accountMutation)throw new AuthError('Wait for the account operation to finish.','auth_busy',409);
+      if(data.expectedAccount&&data.expectedAccount!==account)throw new AuthError('The account changed. Retry in the current account.','account_changed',409);
       activeChats.add(controller);res.writeHead(200,{'Content-Type':'application/x-ndjson'});res.flushHeaders();const signal=AbortSignal.any([controller.signal,AbortSignal.timeout(180000)]);
       try{
-        await runAgent({provider,model:data.model,messages:data.messages,signal,emit:event=>{if(!res.destroyed)res.write(JSON.stringify(event)+'\n');},workspace,account:await workspaceAccount(),services:{images:referenceProvider,web:webProvider,weather:weatherProvider,maps:mapProvider},internet:data.webSearch!==false,liveUI:Array.isArray(data.liveUI)?data.liveUI.slice(0,12):[],defaultCity:process.env.WEATHER_CITY||'Bangkok',timeZone:typeof data.timeZone==='string'?data.timeZone:'Asia/Bangkok'});
+        await runAgent({provider,model:data.model,messages:data.messages,signal,emit:event=>{if(!res.destroyed)res.write(JSON.stringify(event)+'\n');},workspace,account,conversationId:data.conversationId,services:{images:referenceProvider,web:webProvider,weather:weatherProvider,maps:mapProvider},internet:data.webSearch!==false,liveUI:Array.isArray(data.liveUI)?data.liveUI.slice(0,12):[],defaultCity:process.env.WEATHER_CITY||'Bangkok',timeZone:typeof data.timeZone==='string'?data.timeZone:'Asia/Bangkok'});
       }
-      catch(e){if(!res.destroyed)res.write(JSON.stringify({type:'error',error:e.message,code:e.code,status:e.status,requestId:e.requestId})+'\n');}
+      catch(e){if(!res.destroyed)res.write(JSON.stringify({type:'error',error:safeError(e),code:e.code,status:e.status,requestId:e.requestId,runId:e.runId,progress:e.progress})+'\n');}
       finally{activeChats.delete(controller);}return res.end();
     }
     if(req.method==='POST'&&path==='/api/transcribe'){const wav=await body(req,2200000);if(wav.toString('ascii',0,4)!=='RIFF'||wav.toString('ascii',8,12)!=='WAVE')return json(res,400,{error:'Expected WAV audio'});return json(res,200,{text:await transcribe(wav,whisper,AbortSignal.any([controller.signal,AbortSignal.timeout(90000)]))});}
     if(req.method==='POST'&&path==='/api/speak'){const{text}=JSON.parse(await body(req));if(typeof text!=='string'||!text.trim()||text.length>5000)return json(res,400,{error:'Speech must be 1–5000 characters'});const audio=await speak(text,controller.signal);res.writeHead(200,{'Content-Type':'audio/wav'});return res.end(audio);}
     json(res,404,{error:'Not found'});
-  }catch(e){if(!res.headersSent)json(res,e.status||400,{error:e.message,code:e.code});else res.end();}
+  }catch(e){if(!res.headersSent)json(res,e.status||400,{error:safeError(e),code:e.code});else res.end();}
 });
 server.listen(port,'127.0.0.1',()=>console.log(`Kenta's JARVIS → ${origin} (${providerName})`));
 

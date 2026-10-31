@@ -85,9 +85,19 @@ Memory retrieval ranks lexical matches, task categories and communication prefer
 
 Open **Workspace → Projects** to add or edit purpose, architecture, stack, decisions, current progress, bugs, repository and deployment information. Add future projects by name without changing code. Records are stored per account alongside notes, independently of the core prompt. StageWrite Studio, OpenBridge, KineticForm and Town Simulation names are recognized, but no technical facts are invented or preloaded. Chat can retrieve records and save them when explicitly requested. Disabling Project context excludes records and their tools.
 
-The core prompt is shared by both existing provider adapters. Relevant records have a 12,000-character budget; relevant older conversation excerpts have a 6,000-character budget. Tool outputs are limited per result and cumulatively, with explicit truncation notices; model tool-call records remain paired with outputs. Saved transcripts are preserved. These are character budgets, not model-specific token guarantees.
+The core prompt is shared by both existing provider adapters. Relevant records have a 12,000-character budget; relevant older conversation excerpts have a 6,000-character budget. Tool outputs are limited to 16,000 serialized characters each and 64,000 cumulatively, with explicit truncation notices; model tool-call records remain paired with outputs. Saved transcripts are preserved. These are character budgets, not model-specific token guarantees.
 
 The tool runner enforces explicit-request checks for model-originated memory, note and project writes. Existing tools cannot send email, publish, modify repositories, or delete files. Future consequential integrations need a real confirmation flow. UI results describe browser operations as requested where no rendering acknowledgment exists.
+
+## V2 request progress and diagnostics
+
+Open **Workspace → Activity** for the last 40 requests. It shows which tools were offered and used, confirmed results versus browser dispatch, failures, cancellations and interruptions. Request details show model-call counts, selected memory/project counts, omitted messages, context character counts and duration. These are operational measurements, not billing/token estimates or a guarantee that the overall task succeeded.
+
+Activity is stored in small account-separated files under `.local/workspace/activity/`, independently of saved transcripts. It contains no raw prompts, replies, tool arguments, tool results or credentials. A server restart marks unfinished records interrupted; it never automatically retries an action. Follow-ups can receive relevant prior execution status from the same conversation.
+
+Failed and cancelled replies now save the user request, the failure and completed tool outcomes. Reloading or continuing a chat preserves partial progress, including a note or memory saved before a provider failure. This does not guarantee exactly-once execution across a crash between a write and its activity update; check saved data before repeating an uncertain action.
+
+V2 also handles public GitHub research without pretending to have private GitHub access, scopes memories to custom project names/aliases, rejects quoted persistence commands, redacts credential-like operational errors, and uses exact serialized tool-output budgets. The existing stack, sign-in and enabled integrations remain in place. See `V2-AUDIT.md` for the implementation audit and verification limits.
 
 ## Local voice
 
@@ -117,4 +127,4 @@ Remote content is untrusted data. It cannot replace assistant instructions. Mark
 
 ## Checks
 
-Run `npm test`. Tests cover authentication, streaming, tool-loop execution, disabled add-ons, safe arithmetic, account-separated durable storage, manifest validation, public-page protections and existing visual data services. Browser checks exercise natural requests, real photos/maps/weather, conversation restoration, memory across new chats, notes, add-on installation and mobile layouts.
+Run `npm test`. V2 adds interruption recovery, task-state isolation, permission and routing edge cases, privacy redaction and exact serialization-budget checks. Tests also cover authentication, streaming, tool-loop execution, disabled add-ons, safe arithmetic, account-separated durable storage, manifest validation, public-page protections and existing visual data services. Browser checks exercise natural requests, real photos/maps/weather, conversation restoration, memory across new chats, notes, add-on installation and mobile layouts.

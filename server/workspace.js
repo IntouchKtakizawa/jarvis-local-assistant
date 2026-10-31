@@ -26,11 +26,27 @@ export function validateAddon(value){
  return {id,name:value.name.trim().slice(0,60),description:value.description.slice(0,500),endpoint,parameters,network:true,icon:'⊞',custom:true};
 }
 export class Workspace{
- constructor(dir){this.dir=dir;this.queue=Promise.resolve();}
- path(account){return join(this.dir,createHash('sha256').update(account).digest('hex')+'.json');}
- async load(account){await mkdir(this.dir,{recursive:true,mode:0o700});try{const d=JSON.parse(await readFile(this.path(account),'utf8'));return {...fresh(),...d,enabled:{...fresh().enabled,...d.enabled}};}catch(e){if(e.code==='ENOENT')return fresh();throw new Error('Could not read your local workspace. Your saved file has been preserved.');}}
+ constructor(dir){this.dir=dir;this.queue=Promise.resolve();this.runQueue=Promise.resolve();this.activeRuns=new Set();}
+ path(account,area='workspace'){return join(this.dir,...(area==='activity'?['activity']:[]),createHash('sha256').update(account).digest('hex')+'.json');}
+ async load(account,area='workspace'){
+  const empty=()=>area==='activity'?{runs:[]}:fresh();
+  await mkdir(area==='activity'?join(this.dir,'activity'):this.dir,{recursive:true,mode:0o700});
+  try{
+   const data=JSON.parse(await readFile(this.path(account,area),'utf8'));
+   if(area==='activity')return {runs:(data.runs||[]).map(r=>r.status==='running'&&!this.activeRuns.has(r.id)?{...r,status:'interrupted'}:r)};
+   return {...fresh(),...data,enabled:{...fresh().enabled,...data.enabled}};
+  }catch(e){if(e.code==='ENOENT')return empty();throw new Error('Could not read your local workspace. Your saved file has been preserved.');}
+ }
  async get(account){await this.queue.catch(()=>{});return this.load(account);}
- update(account,fn){const task=this.queue.catch(()=>{}).then(async()=>{const state=await this.load(account);const result=await fn(state);const tmp=this.path(account)+'.'+randomUUID()+'.tmp';await writeFile(tmp,JSON.stringify(state),{mode:0o600});await rename(tmp,this.path(account));return result;});this.queue=task;return task;}
+ async getRuns(account){await this.runQueue.catch(()=>{});return this.load(account,'activity');}
+ update(account,fn,area='workspace'){
+  const queue=area==='activity'?'runQueue':'queue';
+  const task=this[queue].catch(()=>{}).then(async()=>{
+   const state=await this.load(account,area),result=await fn(state),tmp=this.path(account,area)+'.'+randomUUID()+'.tmp';
+   await writeFile(tmp,JSON.stringify(state),{mode:0o600});await rename(tmp,this.path(account,area));return result;
+  });this[queue]=task;return task;
+ }
+ updateRuns(account,fn){return this.update(account,fn,'activity');}
  async action(account,data){
   if(!data||typeof data.action!=='string')throw new Error('Choose a workspace action.');
   if(data.action==='getChat'){const s=await this.get(account);return s.chats.find(c=>c.id===data.id)||null;}
@@ -60,5 +76,5 @@ export class Workspace{
    throw new Error('Unknown workspace action.');
   });
  }
- async overview(account){const s=await this.get(account);return {addons:[...BUILTINS,...s.custom].map(a=>({...a,enabled:s.enabled[a.id]!==false})),memory:s.memory,notes:s.notes,projects:s.projects,chats:s.chats.map(({id,title,updatedAt})=>({id,title,updatedAt}))};}
+ async overview(account){const [s,{runs}]=await Promise.all([this.get(account),this.getRuns(account)]);return {addons:[...BUILTINS,...s.custom].map(a=>({...a,enabled:s.enabled[a.id]!==false})),memory:s.memory,notes:s.notes,projects:s.projects,runs,chats:s.chats.map(({id,title,updatedAt})=>({id,title,updatedAt}))};}
 }

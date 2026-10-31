@@ -1,8 +1,16 @@
 import {mkdir,rm,cp,readFile,writeFile,readdir} from 'node:fs/promises';
 import {join,resolve} from 'node:path';
 import {createHash} from 'node:crypto';
-const revision=createHash('sha256').update(await readFile(new URL('../public/app.js',import.meta.url))).update(await readFile(new URL('../public/connection.js',import.meta.url))).update(await readFile(new URL('../public/futuristic.css',import.meta.url))).update(await readFile(new URL('../public/index.html',import.meta.url))).update(await readFile(new URL('../public/floating-ui.js',import.meta.url))).update(await readFile(new URL('../public/ui-spec.js',import.meta.url))).update(await readFile(new URL('../public/ui-math.js',import.meta.url))).digest('hex').slice(0,12);
 const root=resolve(import.meta.dirname,'..'),dist=join(root,'dist');
+const hash=createHash('sha256');
+async function hashAssets(dir){
+ for(const entry of (await readdir(dir,{withFileTypes:true})).sort((a,b)=>a.name.localeCompare(b.name))){
+  const file=join(dir,entry.name);hash.update(entry.name+'\0');
+  if(entry.isDirectory())await hashAssets(file);else hash.update(await readFile(file));
+ }
+}
+await hashAssets(join(root,'public'));hash.update(await readFile(join(root,'package-lock.json')));
+const revision=hash.digest('hex').slice(0,12);
 await rm(dist,{recursive:true,force:true});await mkdir(dist,{recursive:true});
 await cp(join(root,'public'),dist,{recursive:true,filter:source=>!source.endsWith('doge.png')});
 const vendors={'leaflet.js':'leaflet/dist/leaflet.js','leaflet.css':'leaflet/dist/leaflet.css','marked.js':'marked/lib/marked.esm.js','purify.js':'dompurify/dist/purify.es.mjs'};await mkdir(join(dist,'vendor'),{recursive:true});

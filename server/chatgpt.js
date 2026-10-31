@@ -1,5 +1,5 @@
 import {referenceInput} from './references.js';
-import {SYSTEM} from './ollama.js';
+import {CORE_PROMPT} from './prompt.js';
 import {RESOURCE,AuthError} from './auth.js';
 const recovery={
   subscription_sharing_usage_limit_exceeded:'Your ChatGPT plan or app usage limit was reached. Open Manage usage to review it.',
@@ -48,7 +48,7 @@ export class ChatGPTProvider{
   }
   async *chat(messages,model,signal,references=[]){
     if(!model)throw new AuthError('Choose a model available to your ChatGPT account.','model_required',400);
-    const response=await this.request('/responses',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model,instructions:SYSTEM.replace('personal local assistant','personal assistant'),input:referenceInput(messages,references),store:false,stream:true}),signal});
+    const response=await this.request('/responses',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model,instructions:CORE_PROMPT,input:referenceInput(messages,references),store:false,stream:true}),signal});
     let complete=false;
     for await(const event of events(response.body)){
       if(event.type==='response.output_text.delta'&&typeof event.delta==='string')yield{type:'token',content:event.delta};
